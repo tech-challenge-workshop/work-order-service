@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: work-order-postgres
+    environment:
+      POSTGRES_USER: workorder
+      POSTGRES_PASSWORD: workorder
+      POSTGRES_DB: workorder
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U workorder -d workorder']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: work-order-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: workorder
+      RABBITMQ_DEFAULT_PASS: workorder
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:

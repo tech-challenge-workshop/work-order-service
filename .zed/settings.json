@@ -1,0 +1,27 @@
+{
+  // Format every buffer on save.
+  "format_on_save": "on",
+
+  "languages": {
+    "TypeScript": {
+      // Run ESLint --fix first (unused imports, etc.), then Prettier for style.
+      "code_actions_on_format": {
+        "source.fixAll.eslint": true
+      },
+      // Zed's bundled Prettier auto-loads this repo's .prettierrc + node_modules plugins.
+      "formatter": "prettier"
+    },
+    "JavaScript": {
+      "code_actions_on_format": {
+        "source.fixAll.eslint": true
+      },
+      "formatter": "prettier"
+    },
+    "JSON": {
+      "formatter": "prettier"
+    },
+    "JSONC": {
+      "formatter": "prettier"
+    }
+  }
+}
