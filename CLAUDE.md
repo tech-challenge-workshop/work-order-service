@@ -34,7 +34,7 @@ pnpm start:dev            # dev com watch
 pnpm build                # build de produção
 pnpm test                 # testes unitários
 pnpm test:cov             # cobertura (manter ≥80%)
-pnpm test:e2e             # testes e2e
+pnpm test:e2e             # testes e2e (requer docker compose up antes)
 pnpm lint                 # eslint --fix
 pnpm format               # prettier
 docker compose up -d      # Postgres + RabbitMQ locais
