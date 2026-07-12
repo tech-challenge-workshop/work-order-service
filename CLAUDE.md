@@ -106,6 +106,7 @@ JWT emitido pela Lambda (repo `tech-lambda`) — este serviço **valida** o toke
 
 ## Testes
 
+- **Todos os testes vivem em `tests/` na raiz**, espelhando a estrutura de `src/` (ex.: `tests/modules/customers/domain/document.spec.ts`). E2E em `tests/e2e/`. Nunca colocar `.spec.ts` dentro de `src/`.
 - TDD: escrever o teste do use case antes da implementação.
 - Domain e application testados sem Nest/DB (mocks dos ports).
 - Pelo menos um fluxo completo com **BDD** (exigência do desafio).

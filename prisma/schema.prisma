@@ -7,3 +7,24 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum DocumentType {
+  CPF
+  CNPJ
+
+  @@map("document_type")
+}
+
+model Customer {
+  id           String       @id @db.Uuid
+  name         String
+  document     String       @unique
+  documentType DocumentType @map("document_type")
+  email        String?
+  phone        String?
+  createdAt    DateTime     @map("created_at")
+  updatedAt    DateTime     @map("updated_at")
+  deletedAt    DateTime?    @map("deleted_at")
+
+  @@map("customers")
+}

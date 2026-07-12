@@ -1,4 +1,4 @@
-import { HealthController } from './health.controller'
+import { HealthController } from '../../../src/shared/health/health.controller'
 
 describe('HealthController', () => {
   it('returns ok status', () => {
