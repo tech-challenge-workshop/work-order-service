@@ -6,11 +6,13 @@ This is one of three independent microservices:
 
 | Service | Responsibility |
 |---|---|
-| **work-order-service** (this repo) | Customers, vehicles, service catalog, work order lifecycle, saga orchestration |
-| billing | Quotes and payments (Mercado Pago) |
-| execution | Repair execution queue, diagnostics, parts inventory |
+| **work-order-service** (this repo) | Customers, vehicles, repair service catalog, work order lifecycle, item/price snapshots, saga orchestration |
+| billing-service | Quotes generated from work order snapshots, quote approval/refusal, payments, Mercado Pago webhooks |
+| execution-service | Diagnosis workflow, repair execution queue, execution progress and completion/failure events |
 
 Services communicate through RabbitMQ events (async) and REST (sync, when strictly needed). Each service owns its database — no service touches another service's data store.
+
+`work-order-service` publishes immutable item/price snapshots for quote generation. `billing-service` generates and owns quotes from those snapshots; it must never read the `work-order-service` database.
 
 ## Stack
 
