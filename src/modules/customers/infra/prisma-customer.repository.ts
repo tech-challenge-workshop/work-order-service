@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import type { Customer as CustomerRow } from '../../../generated/prisma/client'
+import { Prisma } from '../../../generated/prisma/client'
 import { PrismaService } from '../../../shared/database/prisma.service'
 import { Customer } from '../domain/customer.entity'
 import { Document } from '../domain/value-objects/document'
@@ -17,12 +18,14 @@ export class PrismaCustomerRepository implements CustomerRepository {
     await this.prisma.customer.create({ data: this.toRow(customer) })
   }
 
-  update(_customer: Customer): Promise<void> {
-    return Promise.reject(new Error('Not implemented'))
+  async update(customer: Customer): Promise<void> {
+    const { id, ...data } = this.toRow(customer)
+    await this.prisma.customer.update({ where: { id }, data })
   }
 
-  findById(_id: string): Promise<Customer | null> {
-    return Promise.reject(new Error('Not implemented'))
+  async findById(id: string): Promise<Customer | null> {
+    const row = await this.prisma.customer.findFirst({ where: { id, deletedAt: null } })
+    return row ? this.toEntity(row) : null
   }
 
   async findByDocument(document: Document): Promise<Customer | null> {
@@ -30,8 +33,30 @@ export class PrismaCustomerRepository implements CustomerRepository {
     return row ? this.toEntity(row) : null
   }
 
-  list(_params: ListCustomersParams): Promise<PaginatedCustomers> {
-    return Promise.reject(new Error('Not implemented'))
+  async list(params: ListCustomersParams): Promise<PaginatedCustomers> {
+    const where: Prisma.CustomerWhereInput = {
+      deletedAt: null,
+      ...(params.search
+        ? {
+            OR: [
+              { name: { contains: params.search, mode: 'insensitive' } },
+              { document: { contains: params.search.replace(/\D/g, '') || params.search } },
+            ],
+          }
+        : {}),
+    }
+
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.customer.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip: (params.page - 1) * params.perPage,
+        take: params.perPage,
+      }),
+      this.prisma.customer.count({ where }),
+    ])
+
+    return { items: rows.map((row) => this.toEntity(row)), total }
   }
 
   private toRow(customer: Customer): CustomerRow {

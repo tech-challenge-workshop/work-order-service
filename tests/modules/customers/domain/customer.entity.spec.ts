@@ -8,6 +8,8 @@ import {
   DocumentType,
 } from '../../../../src/modules/customers/domain/value-objects/document'
 
+import { customerWith } from '../customer.fixtures'
+
 const VALID_CPF = '39053344705'
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
@@ -78,15 +80,68 @@ describe('Customer', () => {
   })
 
   describe('update', () => {
-    it.todo('updates name and touches updatedAt')
-    it.todo('keeps fields that were not provided (undefined)')
-    it.todo('clears email/phone when null is provided')
-    it.todo('re-validates name invariant on change')
-    it.todo('does not expose any way to change the document')
+    it('updates name and touches updatedAt', () => {
+      const customer = customerWith({ updatedAt: new Date('2026-01-01T00:00:00Z') })
+
+      customer.update({ name: 'Jane Doe' })
+
+      expect(customer.name).toBe('Jane Doe')
+      expect(customer.updatedAt.getTime()).toBeGreaterThan(
+        new Date('2026-01-01T00:00:00Z').getTime(),
+      )
+    })
+
+    it('keeps fields that were not provided', () => {
+      const customer = customerWith({ email: 'john@example.com', phone: '+55 11 99999-9999' })
+
+      customer.update({ name: 'Jane Doe' })
+
+      expect(customer.email).toBe('john@example.com')
+      expect(customer.phone).toBe('+55 11 99999-9999')
+    })
+
+    it('clears email and phone when null is provided', () => {
+      const customer = customerWith({ email: 'john@example.com', phone: '+55 11 99999-9999' })
+
+      customer.update({ email: null, phone: null })
+
+      expect(customer.email).toBeNull()
+      expect(customer.phone).toBeNull()
+    })
+
+    it('re-validates name invariant on change', () => {
+      const customer = customerWith()
+
+      expect(() => customer.update({ name: '   ' })).toThrow(InvalidCustomerError)
+      expect(customer.name).toBe('John Doe')
+    })
+
+    it('does not expose any way to change the document', () => {
+      const customer = customerWith()
+
+      customer.update({ name: 'Jane Doe' })
+
+      expect(customer.document.value).toBe(VALID_CPF)
+    })
   })
 
   describe('delete', () => {
-    it.todo('sets deletedAt and isDeleted becomes true')
-    it.todo('is a no-op when already deleted (deletedAt unchanged)')
+    it('sets deletedAt and isDeleted becomes true', () => {
+      const customer = customerWith()
+
+      customer.delete()
+
+      expect(customer.deletedAt).toBeInstanceOf(Date)
+      expect(customer.isDeleted).toBe(true)
+    })
+
+    it('is a no-op when already deleted', () => {
+      const deletedAt = new Date('2026-01-02T00:00:00Z')
+      const customer = customerWith({ deletedAt })
+
+      customer.delete()
+
+      expect(customer.deletedAt).toEqual(deletedAt)
+    })
   })
 })

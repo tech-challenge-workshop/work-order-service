@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { CUSTOMER_REPOSITORY } from '../ports/customer.repository'
 import type { CustomerRepository, ListCustomersParams } from '../ports/customer.repository'
-import { CustomerOutput } from '../models/customer.output'
+import { CustomerOutput, toCustomerOutput } from '../models/customer.output'
 
 export interface ListCustomersOutput {
   items: CustomerOutput[]
@@ -17,7 +17,14 @@ export class ListCustomersUseCase {
     private readonly customers: CustomerRepository,
   ) {}
 
-  execute(_params: ListCustomersParams): Promise<ListCustomersOutput> {
-    return Promise.reject(new Error('Not implemented'))
+  async execute(params: ListCustomersParams): Promise<ListCustomersOutput> {
+    const { items, total } = await this.customers.list(params)
+
+    return {
+      items: items.map(toCustomerOutput),
+      total,
+      page: params.page,
+      perPage: params.perPage,
+    }
   }
 }

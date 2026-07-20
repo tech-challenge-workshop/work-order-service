@@ -53,12 +53,30 @@ export class Customer {
     return new Customer(props)
   }
 
-  update(_input: UpdateCustomerInput): void {
-    throw new Error('Not implemented')
+  update(input: UpdateCustomerInput): void {
+    if (input.name !== undefined) {
+      const name = input.name.trim()
+      if (name.length === 0) {
+        throw new InvalidCustomerError('name must not be empty')
+      }
+      this.props.name = name
+    }
+
+    if (input.email !== undefined) {
+      this.props.email = input.email
+    }
+
+    if (input.phone !== undefined) {
+      this.props.phone = input.phone
+    }
+
+    this.props.updatedAt = new Date()
   }
 
   delete(): void {
-    throw new Error('Not implemented')
+    if (this.props.deletedAt === null) {
+      this.props.deletedAt = new Date()
+    }
   }
 
   get id(): string {

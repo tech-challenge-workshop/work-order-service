@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common'
+import { CustomerNotFoundError } from '../../domain/errors/customer.errors'
 import { CUSTOMER_REPOSITORY } from '../ports/customer.repository'
 import type { CustomerRepository } from '../ports/customer.repository'
 
@@ -9,7 +10,13 @@ export class DeleteCustomerUseCase {
     private readonly customers: CustomerRepository,
   ) {}
 
-  execute(_id: string): Promise<void> {
-    return Promise.reject(new Error('Not implemented'))
+  async execute(id: string): Promise<void> {
+    const customer = await this.customers.findById(id)
+    if (!customer) {
+      throw new CustomerNotFoundError(id)
+    }
+
+    customer.delete()
+    await this.customers.update(customer)
   }
 }

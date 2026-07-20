@@ -6,6 +6,8 @@ import { AppModule } from '../../src/app.module'
 import { PrismaService } from '../../src/shared/database/prisma.service'
 
 const VALID_CPF = '390.533.447-05'
+const VALID_CNPJ = '11.222.333/0001-81'
+const MISSING_UUID = '00000000-0000-4000-8000-000000000000'
 
 describe('Customers (e2e)', () => {
   let app: INestApplication<App>
@@ -34,6 +36,11 @@ describe('Customers (e2e)', () => {
     await app.close()
   })
 
+  async function createCustomer(payload: Record<string, unknown>): Promise<{ id: string }> {
+    const response = await request(app.getHttpServer()).post('/customers').send(payload).expect(201)
+    return response.body as { id: string }
+  }
+
   describe('POST /customers', () => {
     it('creates a customer and returns 201 with the masked document', async () => {
       const response = await request(app.getHttpServer())
@@ -51,10 +58,7 @@ describe('Customers (e2e)', () => {
     })
 
     it('returns 409 for a duplicated document', async () => {
-      await request(app.getHttpServer())
-        .post('/customers')
-        .send({ name: 'John Doe', document: VALID_CPF })
-        .expect(201)
+      await createCustomer({ name: 'John Doe', document: VALID_CPF })
 
       await request(app.getHttpServer())
         .post('/customers')
@@ -74,6 +78,118 @@ describe('Customers (e2e)', () => {
         .post('/customers')
         .send({ name: 'John Doe', document: VALID_CPF, role: 'admin' })
         .expect(400)
+    })
+  })
+
+  describe('GET /customers/:id', () => {
+    it('returns the customer', async () => {
+      const { id } = await createCustomer({ name: 'John Doe', document: VALID_CPF })
+
+      const response = await request(app.getHttpServer()).get(`/customers/${id}`).expect(200)
+
+      expect(response.body).toMatchObject({ id, name: 'John Doe', document: VALID_CPF })
+    })
+
+    it('returns 404 for an unknown id', async () => {
+      await request(app.getHttpServer()).get(`/customers/${MISSING_UUID}`).expect(404)
+    })
+
+    it('returns 400 for a malformed id', async () => {
+      await request(app.getHttpServer()).get('/customers/not-a-uuid').expect(400)
+    })
+  })
+
+  describe('GET /customers', () => {
+    it('lists customers ordered by name with pagination metadata', async () => {
+      await createCustomer({ name: 'Bob', document: VALID_CPF })
+      await createCustomer({ name: 'Alice', document: VALID_CNPJ })
+
+      const response = await request(app.getHttpServer()).get('/customers').expect(200)
+
+      expect(response.body).toMatchObject({ total: 2, page: 1, perPage: 20 })
+      const items = (response.body as { items: { name: string }[] }).items
+      expect(items.map((item) => item.name)).toEqual(['Alice', 'Bob'])
+    })
+
+    it('filters by search term', async () => {
+      await createCustomer({ name: 'Bob', document: VALID_CPF })
+      await createCustomer({ name: 'Alice', document: VALID_CNPJ })
+
+      const response = await request(app.getHttpServer())
+        .get('/customers')
+        .query({ search: 'ali' })
+        .expect(200)
+
+      expect(response.body).toMatchObject({ total: 1 })
+    })
+
+    it('excludes soft-deleted customers', async () => {
+      const { id } = await createCustomer({ name: 'John Doe', document: VALID_CPF })
+      await request(app.getHttpServer()).delete(`/customers/${id}`).expect(204)
+
+      const response = await request(app.getHttpServer()).get('/customers').expect(200)
+
+      expect(response.body).toMatchObject({ total: 0 })
+    })
+  })
+
+  describe('PATCH /customers/:id', () => {
+    it('updates contact data', async () => {
+      const { id } = await createCustomer({ name: 'John Doe', document: VALID_CPF })
+
+      const response = await request(app.getHttpServer())
+        .patch(`/customers/${id}`)
+        .send({ name: 'Jane Doe', phone: '+55 11 99999-9999' })
+        .expect(200)
+
+      expect(response.body).toMatchObject({
+        id,
+        name: 'Jane Doe',
+        phone: '+55 11 99999-9999',
+        document: VALID_CPF,
+      })
+    })
+
+    it('rejects document changes', async () => {
+      const { id } = await createCustomer({ name: 'John Doe', document: VALID_CPF })
+
+      await request(app.getHttpServer())
+        .patch(`/customers/${id}`)
+        .send({ document: VALID_CNPJ })
+        .expect(400)
+    })
+
+    it('returns 404 for an unknown id', async () => {
+      await request(app.getHttpServer())
+        .patch(`/customers/${MISSING_UUID}`)
+        .send({ name: 'Jane Doe' })
+        .expect(404)
+    })
+  })
+
+  describe('DELETE /customers/:id', () => {
+    it('soft-deletes and the customer stops being readable', async () => {
+      const { id } = await createCustomer({ name: 'John Doe', document: VALID_CPF })
+
+      await request(app.getHttpServer()).delete(`/customers/${id}`).expect(204)
+      await request(app.getHttpServer()).get(`/customers/${id}`).expect(404)
+    })
+
+    it('returns 404 when already deleted', async () => {
+      const { id } = await createCustomer({ name: 'John Doe', document: VALID_CPF })
+      await request(app.getHttpServer()).delete(`/customers/${id}`).expect(204)
+
+      await request(app.getHttpServer()).delete(`/customers/${id}`).expect(404)
+    })
+
+    it('keeps the document reserved after deletion', async () => {
+      const { id } = await createCustomer({ name: 'John Doe', document: VALID_CPF })
+      await request(app.getHttpServer()).delete(`/customers/${id}`).expect(204)
+
+      await request(app.getHttpServer())
+        .post('/customers')
+        .send({ name: 'John Again', document: VALID_CPF })
+        .expect(409)
     })
   })
 })
