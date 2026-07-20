@@ -28,10 +28,12 @@ describe('Customers (e2e)', () => {
   })
 
   beforeEach(async () => {
+    await prisma.vehicle.deleteMany()
     await prisma.customer.deleteMany()
   })
 
   afterAll(async () => {
+    await prisma.vehicle.deleteMany()
     await prisma.customer.deleteMany()
     await app.close()
   })
