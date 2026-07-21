@@ -8,14 +8,16 @@ Microserviço de **Atendimento e Ordens de Serviço** do Tech Challenge FIAP (Fa
 
 - CRUD de **clientes** (CPF/CNPJ validados) e **veículos** (placa, marca, modelo, ano)
 - CRUD do **catálogo de serviços** da oficina (com preços)
-- **Abertura de OS** (retorna ID único, grava snapshot de itens/preços)
+- **Abertura de OS** (retorna ID único, grava snapshot imutável de itens/preços)
 - **Máquina de status** da OS + histórico de transições
 - Listagem ordenada de OS e consulta de status pelo cliente
 - **Orquestrador da Saga** do fluxo transacional da OS
 - Notificação ao cliente a cada mudança de status
 - Métrica de tempo médio de execução (a partir do histórico)
 
-**Fora do escopo (outros microserviços):** orçamento e pagamento (`billing`, integra Mercado Pago), execução/diagnóstico e **estoque de peças** (`execution`). Nunca acessar o banco de outro serviço — integração só via eventos RabbitMQ ou REST síncrono.
+**Fora do escopo (outros microserviços):** orçamento e pagamento (`billing-service`, integra Mercado Pago), execução/diagnóstico e progresso de reparo (`execution-service`). Nunca acessar o banco de outro serviço — integração só via eventos RabbitMQ ou REST síncrono controlado.
+
+`work-order-service` publica o snapshot de itens/preços para geração de orçamento. O `billing-service` gera e persiste o orçamento a partir desse snapshot; ele não consulta o banco do `work-order-service`.
 
 ## Stack
 
@@ -90,7 +92,7 @@ src/
 - `FINISHED` e `DELIVERED` não aparecem na listagem (**exclusão lógica**, nunca DELETE físico).
 
 **Abertura de OS:**
-- Preços de peças são consultados no `execution` service via REST síncrono no momento da criação; serviços vêm do catálogo próprio. Gravar **snapshot** de itens+preços na OS (billing calcula o orçamento a partir do snapshot no evento).
+- Serviços e itens necessários para a abertura vêm do catálogo próprio deste serviço. Gravar **snapshot imutável** de itens+preços na OS; o `billing-service` calcula o orçamento a partir do snapshot recebido por evento.
 
 **Validações:** CPF/CNPJ e placa validados no domain (value objects), não apenas no DTO.
 
@@ -98,7 +100,7 @@ src/
 
 Fluxo feliz: `WorkOrderCreated → PartsReserved → QuoteGenerated → QuoteApproved → PaymentConfirmed → ExecutionStarted → ExecutionCompleted → Delivered`.
 
-Falha em qualquer passo dispara compensações na ordem inversa (liberar reserva de peças, cancelar quote, estornar pagamento, `CANCELLED` na OS). Todo evento novo deve ter: nome em inglês no passado (`QuoteApproved`), payload versionado documentado, handler idempotente (eventos podem ser reentregues).
+Falha em qualquer passo dispara compensações na ordem inversa aplicável (cancelar quote, registrar falha/estorno ou revisão manual, `CANCELLED` na OS quando cabível). Todo evento novo deve ter: nome em inglês no passado (`QuoteApproved`), payload versionado documentado, handler idempotente (eventos podem ser reentregues).
 
 ## Autenticação
 
