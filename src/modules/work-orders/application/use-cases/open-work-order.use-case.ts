@@ -18,6 +18,9 @@ import { WORK_ORDER_REPOSITORY } from '../ports/work-order.repository'
 import type { WorkOrderRepository } from '../ports/work-order.repository'
 import { PART_CATALOG_GATEWAY } from '../ports/part-catalog.gateway'
 import type { PartCatalogGateway } from '../ports/part-catalog.gateway'
+import { MESSAGE_PUBLISHER } from '../../../../shared/messaging/message-publisher'
+import type { MessagePublisher } from '../../../../shared/messaging/message-publisher'
+import { SagaMessage } from '../../../../shared/messaging/saga-messages'
 import { WorkOrderOutput, toWorkOrderOutput } from '../models/work-order.output'
 
 export interface OpenWorkOrderPart {
@@ -45,6 +48,8 @@ export class OpenWorkOrderUseCase {
     private readonly repairServices: RepairServiceRepository,
     @Inject(PART_CATALOG_GATEWAY)
     private readonly partCatalog: PartCatalogGateway,
+    @Inject(MESSAGE_PUBLISHER)
+    private readonly publisher: MessagePublisher,
   ) {}
 
   async execute(command: OpenWorkOrderCommand): Promise<WorkOrderOutput> {
@@ -72,6 +77,12 @@ export class OpenWorkOrderUseCase {
       items,
     })
     await this.workOrders.create(workOrder)
+
+    await this.publisher.publish(SagaMessage.WorkOrderOpened, {
+      workOrderId: workOrder.id,
+      parts: command.parts ?? [],
+      totalCents: workOrder.totalCents,
+    })
 
     return toWorkOrderOutput(workOrder)
   }

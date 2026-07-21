@@ -113,3 +113,24 @@ model WorkOrderStatusHistory {
 
   @@map("work_order_status_history")
 }
+
+enum SagaStatus {
+  RUNNING
+  COMPLETED
+  CANCELLED
+
+  @@map("saga_status")
+}
+
+model SagaInstance {
+  workOrderId      String     @id @map("work_order_id") @db.Uuid
+  status           SagaStatus
+  step             String
+  partsReserved    Boolean    @map("parts_reserved")
+  quoteGenerated   Boolean    @map("quote_generated")
+  paymentConfirmed Boolean    @map("payment_confirmed")
+  createdAt        DateTime   @map("created_at")
+  updatedAt        DateTime   @map("updated_at")
+
+  @@map("saga_instances")
+}

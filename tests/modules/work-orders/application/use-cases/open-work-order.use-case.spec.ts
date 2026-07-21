@@ -18,6 +18,8 @@ import {
 } from '../../../catalog/repair-service.fixtures'
 import { FakePartCatalogGateway, FakeWorkOrderRepository } from '../../work-order.fixtures'
 import { Plate } from '../../../../../src/modules/vehicles/domain/value-objects/plate'
+import { FakeMessagePublisher } from '../../../../shared/fake-message-publisher'
+import { SagaMessage } from '../../../../../src/shared/messaging/saga-messages'
 
 describe('OpenWorkOrderUseCase', () => {
   let workOrders: FakeWorkOrderRepository
@@ -25,6 +27,7 @@ describe('OpenWorkOrderUseCase', () => {
   let vehicles: FakeVehicleRepository
   let repairServices: FakeRepairServiceRepository
   let partCatalog: FakePartCatalogGateway
+  let publisher: FakeMessagePublisher
   let useCase: OpenWorkOrderUseCase
 
   beforeEach(() => {
@@ -33,7 +36,15 @@ describe('OpenWorkOrderUseCase', () => {
     vehicles = new FakeVehicleRepository()
     repairServices = new FakeRepairServiceRepository()
     partCatalog = new FakePartCatalogGateway()
-    useCase = new OpenWorkOrderUseCase(workOrders, customers, vehicles, repairServices, partCatalog)
+    publisher = new FakeMessagePublisher()
+    useCase = new OpenWorkOrderUseCase(
+      workOrders,
+      customers,
+      vehicles,
+      repairServices,
+      partCatalog,
+      publisher,
+    )
   })
 
   function seedCustomerWithVehicle() {
@@ -66,6 +77,8 @@ describe('OpenWorkOrderUseCase', () => {
       quantity: 1,
     })
     expect(output.totalCents).toBe(15000)
+    expect(publisher.patterns()).toContain(SagaMessage.WorkOrderOpened)
+    expect(publisher.lastPayload()).toMatchObject({ workOrderId: output.id, totalCents: 15000 })
   })
 
   it('resolves parts from the catalog gateway with the requested quantity', async () => {
