@@ -1,0 +1,82 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: workorder
+          POSTGRES_PASSWORD: workorder
+          POSTGRES_DB: workorder
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U workorder" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+      rabbitmq:
+        image: rabbitmq:4-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: workorder
+          RABBITMQ_DEFAULT_PASS: workorder
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://workorder:workorder@localhost:5432/workorder?schema=public
+      RABBITMQ_URL: amqp://workorder:workorder@localhost:5672
+      RABBITMQ_QUEUE: work_order_queue
+      JWT_SECRET: ci-secret
+      EXECUTION_SERVICE_URL: http://localhost:3002
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: https://sonarcloud.io
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate
+      - run: pnpm prisma migrate deploy
+      - run: pnpm lint:check
+      - run: pnpm build
+      - run: pnpm test:ci
+      - name: SonarCloud scan
+        if: ${{ env.SONAR_TOKEN != '' }}
+        uses: SonarSource/sonarqube-scan-action@v4
+
+  docker:
+    needs: build-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name == 'push' }}
+          tags: ghcr.io/tech-challenge-workshop/work-order-service:latest
+
+  # deploy:
+  #   TODO: enable once the AWS account and EKS cluster exist.
+  #   Applies the k8s manifests / helm release to the cluster.
