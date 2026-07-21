@@ -18,8 +18,8 @@ import { WORK_ORDER_REPOSITORY } from '../ports/work-order.repository'
 import type { WorkOrderRepository } from '../ports/work-order.repository'
 import { PART_CATALOG_GATEWAY } from '../ports/part-catalog.gateway'
 import type { PartCatalogGateway } from '../ports/part-catalog.gateway'
-import { MESSAGE_PUBLISHER } from '../../../../shared/messaging/message-publisher'
-import type { MessagePublisher } from '../../../../shared/messaging/message-publisher'
+import { MESSAGE_BUS } from '../../../../shared/messaging/message-bus'
+import type { MessageBus } from '../../../../shared/messaging/message-bus'
 import { SagaMessage } from '../../../../shared/messaging/saga-messages'
 import { WorkOrderOutput, toWorkOrderOutput } from '../models/work-order.output'
 
@@ -48,8 +48,8 @@ export class OpenWorkOrderUseCase {
     private readonly repairServices: RepairServiceRepository,
     @Inject(PART_CATALOG_GATEWAY)
     private readonly partCatalog: PartCatalogGateway,
-    @Inject(MESSAGE_PUBLISHER)
-    private readonly publisher: MessagePublisher,
+    @Inject(MESSAGE_BUS)
+    private readonly publisher: MessageBus,
   ) {}
 
   async execute(command: OpenWorkOrderCommand): Promise<WorkOrderOutput> {

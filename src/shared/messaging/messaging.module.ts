@@ -1,27 +1,10 @@
-import { Module } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
-import { ClientsModule, Transport } from '@nestjs/microservices'
-import { MESSAGE_PUBLISHER } from './message-publisher'
-import { RabbitMqMessagePublisher, SAGA_CLIENT } from './rabbitmq-message-publisher'
+import { Global, Module } from '@nestjs/common'
+import { MESSAGE_BUS } from './message-bus'
+import { RabbitMqBus } from './rabbitmq-bus'
 
+@Global()
 @Module({
-  imports: [
-    ClientsModule.registerAsync([
-      {
-        name: SAGA_CLIENT,
-        inject: [ConfigService],
-        useFactory: (config: ConfigService) => ({
-          transport: Transport.RMQ,
-          options: {
-            urls: [config.getOrThrow<string>('RABBITMQ_URL')],
-            queue: config.getOrThrow<string>('RABBITMQ_QUEUE'),
-            queueOptions: { durable: true },
-          },
-        }),
-      },
-    ]),
-  ],
-  providers: [{ provide: MESSAGE_PUBLISHER, useClass: RabbitMqMessagePublisher }],
-  exports: [MESSAGE_PUBLISHER],
+  providers: [RabbitMqBus, { provide: MESSAGE_BUS, useExisting: RabbitMqBus }],
+  exports: [MESSAGE_BUS],
 })
 export class MessagingModule {}

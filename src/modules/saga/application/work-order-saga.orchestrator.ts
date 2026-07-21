@@ -2,8 +2,8 @@ import { Inject, Injectable } from '@nestjs/common'
 import { WORK_ORDER_REPOSITORY } from '../../work-orders/application/ports/work-order.repository'
 import type { WorkOrderRepository } from '../../work-orders/application/ports/work-order.repository'
 import { WorkOrder } from '../../work-orders/domain/work-order.entity'
-import { MESSAGE_PUBLISHER } from '../../../shared/messaging/message-publisher'
-import type { MessagePublisher } from '../../../shared/messaging/message-publisher'
+import { MESSAGE_BUS } from '../../../shared/messaging/message-bus'
+import type { MessageBus } from '../../../shared/messaging/message-bus'
 import { SagaInstance } from '../domain/saga-instance.entity'
 import {
   SagaMessage,
@@ -20,8 +20,8 @@ export class WorkOrderSagaOrchestrator {
     private readonly sagas: SagaInstanceRepository,
     @Inject(WORK_ORDER_REPOSITORY)
     private readonly workOrders: WorkOrderRepository,
-    @Inject(MESSAGE_PUBLISHER)
-    private readonly publisher: MessagePublisher,
+    @Inject(MESSAGE_BUS)
+    private readonly publisher: MessageBus,
   ) {}
 
   async onWorkOrderOpened(payload: WorkOrderOpenedPayload): Promise<void> {

@@ -20,7 +20,7 @@ Microserviço de **Atendimento e Ordens de Serviço** do Tech Challenge FIAP (Fa
 ## Stack
 
 - **NestJS 11** + TypeScript, **pnpm** (não usar npm/yarn)
-- **Processo único** (hybrid application): HTTP e consumers RabbitMQ sobem juntos no `main.ts` (`connectMicroservice` + `startAllMicroservices` + `listen`). Não criar entrypoint separado de worker por enquanto.
+- **Processo único**: HTTP no `main.ts` + mensageria via `RabbitMqBus` (`shared/messaging`), que conecta no boot (`OnApplicationBootstrap`) a um **topic exchange `saga`** e faz bind da fila do serviço às routing keys assinadas. Não usar o transporte RMQ nativo do Nest (roteia pela pattern interna, não pela routing key). Não criar entrypoint separado de worker por enquanto.
 - **PostgreSQL** via **Prisma** (schema em `prisma/schema.prisma`)
 - **RabbitMQ** via `@nestjs/microservices` + `amqplib` (eventos da Saga)
 - **Jest** (unit + e2e), cobertura mínima **80%** (exigência do desafio)
