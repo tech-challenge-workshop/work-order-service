@@ -7,6 +7,7 @@ const envSchema = z.object({
   RABBITMQ_URL: z.url(),
   RABBITMQ_QUEUE: z.string().min(1).default('work_order_queue'),
   JWT_SECRET: z.string().min(1),
+  EXECUTION_SERVICE_URL: z.url().default('http://localhost:3002'),
 })
 
 export type Env = z.infer<typeof envSchema>

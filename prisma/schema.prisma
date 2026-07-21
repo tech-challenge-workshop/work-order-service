@@ -56,3 +56,60 @@ model RepairService {
 
   @@map("repair_services")
 }
+
+enum WorkOrderStatus {
+  RECEIVED
+  IN_DIAGNOSIS
+  AWAITING_APPROVAL
+  IN_EXECUTION
+  FINISHED
+  DELIVERED
+  CANCELLED
+
+  @@map("work_order_status")
+}
+
+enum WorkOrderItemKind {
+  SERVICE
+  PART
+
+  @@map("work_order_item_kind")
+}
+
+model WorkOrder {
+  id         String                   @id @db.Uuid
+  customerId String                   @map("customer_id") @db.Uuid
+  vehicleId  String                   @map("vehicle_id") @db.Uuid
+  status     WorkOrderStatus
+  totalCents Int                      @map("total_cents")
+  createdAt  DateTime                 @map("created_at")
+  updatedAt  DateTime                 @map("updated_at")
+  items      WorkOrderItem[]
+  history    WorkOrderStatusHistory[]
+
+  @@index([status, createdAt])
+  @@map("work_orders")
+}
+
+model WorkOrderItem {
+  id             String            @id @db.Uuid
+  workOrderId    String            @map("work_order_id") @db.Uuid
+  kind           WorkOrderItemKind
+  referenceId    String            @map("reference_id") @db.Uuid
+  description    String
+  unitPriceCents Int               @map("unit_price_cents")
+  quantity       Int
+  workOrder      WorkOrder         @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@map("work_order_items")
+}
+
+model WorkOrderStatusHistory {
+  id          String          @id @db.Uuid
+  workOrderId String          @map("work_order_id") @db.Uuid
+  status      WorkOrderStatus
+  changedAt   DateTime        @map("changed_at")
+  workOrder   WorkOrder       @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@map("work_order_status_history")
+}

@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config'
 import { CatalogModule } from './modules/catalog/catalog.module'
 import { CustomersModule } from './modules/customers/customers.module'
 import { VehiclesModule } from './modules/vehicles/vehicles.module'
+import { WorkOrdersModule } from './modules/work-orders/work-orders.module'
 import { validateEnv } from './shared/config/env'
 import { PrismaModule } from './shared/database/prisma.module'
 import { HealthController } from './shared/health/health.controller'
@@ -14,6 +15,7 @@ import { HealthController } from './shared/health/health.controller'
     CustomersModule,
     VehiclesModule,
     CatalogModule,
+    WorkOrdersModule,
   ],
   controllers: [HealthController],
 })
