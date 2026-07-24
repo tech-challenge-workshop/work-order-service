@@ -22,9 +22,12 @@ import { CustomerExceptionFilter } from './filters/customer-exception.filter'
 import { CreateCustomerDto } from './dtos/create-customer.dto'
 import { ListCustomersQuery } from './dtos/list-customers.query'
 import { UpdateCustomerDto } from './dtos/update-customer.dto'
+import { Roles } from '../../../shared/auth/roles.decorator'
+import { UserRole } from '../../../shared/auth/jwt-payload'
 
 @ApiTags('customers')
 @ApiBearerAuth()
+@Roles(UserRole.ADMIN)
 @UseFilters(CustomerExceptionFilter)
 @Controller('customers')
 export class CustomersController {

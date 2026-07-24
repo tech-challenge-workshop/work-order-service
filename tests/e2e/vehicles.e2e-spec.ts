@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { INestApplication, ValidationPipe } from '@nestjs/common'
 import request from 'supertest'
 import { App } from 'supertest/types'
+import { JwtService } from '@nestjs/jwt'
 import { AppModule } from '../../src/app.module'
 import { PrismaService } from '../../src/shared/database/prisma.service'
 
@@ -11,6 +12,17 @@ const MISSING_UUID = '00000000-0000-4000-8000-000000000000'
 describe('Vehicles (e2e)', () => {
   let app: INestApplication<App>
   let prisma: PrismaService
+  let bearer: string
+
+  const http = () => {
+    const server = app.getHttpServer()
+    return {
+      get: (url: string) => request(server).get(url).set('Authorization', bearer),
+      post: (url: string) => request(server).post(url).set('Authorization', bearer),
+      patch: (url: string) => request(server).patch(url).set('Authorization', bearer),
+      delete: (url: string) => request(server).delete(url).set('Authorization', bearer),
+    }
+  }
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -24,6 +36,7 @@ describe('Vehicles (e2e)', () => {
     await app.init()
 
     prisma = app.get(PrismaService)
+    bearer = `Bearer ${app.get(JwtService).sign({ sub: 'e2e-admin', role: 'admin' })}`
   })
 
   beforeEach(async () => {
@@ -38,7 +51,7 @@ describe('Vehicles (e2e)', () => {
   })
 
   async function createCustomer(): Promise<string> {
-    const response = await request(app.getHttpServer())
+    const response = await http()
       .post('/customers')
       .send({ name: 'John Doe', document: VALID_CPF })
       .expect(201)
@@ -49,7 +62,7 @@ describe('Vehicles (e2e)', () => {
     customerId: string,
     payload: Record<string, unknown> = {},
   ): Promise<string> {
-    const response = await request(app.getHttpServer())
+    const response = await http()
       .post('/vehicles')
       .send({
         customerId,
@@ -67,7 +80,7 @@ describe('Vehicles (e2e)', () => {
     it('creates a vehicle with the normalized plate', async () => {
       const customerId = await createCustomer()
 
-      const response = await request(app.getHttpServer())
+      const response = await http()
         .post('/vehicles')
         .send({ customerId, plate: 'abc-1234', brand: 'Toyota', model: 'Corolla', year: 2024 })
         .expect(201)
@@ -82,7 +95,7 @@ describe('Vehicles (e2e)', () => {
     })
 
     it('returns 404 when the owner does not exist', async () => {
-      await request(app.getHttpServer())
+      await http()
         .post('/vehicles')
         .send({
           customerId: MISSING_UUID,
@@ -98,7 +111,7 @@ describe('Vehicles (e2e)', () => {
       const customerId = await createCustomer()
       await createVehicle(customerId)
 
-      await request(app.getHttpServer())
+      await http()
         .post('/vehicles')
         .send({ customerId, plate: 'abc1d23', brand: 'Honda', model: 'Civic', year: 2023 })
         .expect(409)
@@ -107,7 +120,7 @@ describe('Vehicles (e2e)', () => {
     it('returns 400 for an invalid plate', async () => {
       const customerId = await createCustomer()
 
-      await request(app.getHttpServer())
+      await http()
         .post('/vehicles')
         .send({ customerId, plate: 'INVALID99', brand: 'Toyota', model: 'Corolla', year: 2024 })
         .expect(400)
@@ -119,13 +132,13 @@ describe('Vehicles (e2e)', () => {
       const customerId = await createCustomer()
       const id = await createVehicle(customerId)
 
-      const response = await request(app.getHttpServer()).get(`/vehicles/${id}`).expect(200)
+      const response = await http().get(`/vehicles/${id}`).expect(200)
 
       expect(response.body).toMatchObject({ id, plate: 'ABC1D23' })
     })
 
     it('returns 404 for an unknown id', async () => {
-      await request(app.getHttpServer()).get(`/vehicles/${MISSING_UUID}`).expect(404)
+      await http().get(`/vehicles/${MISSING_UUID}`).expect(404)
     })
   })
 
@@ -134,10 +147,7 @@ describe('Vehicles (e2e)', () => {
       const firstOwner = await createCustomer()
       await createVehicle(firstOwner)
 
-      const response = await request(app.getHttpServer())
-        .get('/vehicles')
-        .query({ customerId: firstOwner })
-        .expect(200)
+      const response = await http().get('/vehicles').query({ customerId: firstOwner }).expect(200)
 
       expect(response.body).toMatchObject({ total: 1 })
     })
@@ -145,9 +155,9 @@ describe('Vehicles (e2e)', () => {
     it('excludes soft-deleted vehicles', async () => {
       const customerId = await createCustomer()
       const id = await createVehicle(customerId)
-      await request(app.getHttpServer()).delete(`/vehicles/${id}`).expect(204)
+      await http().delete(`/vehicles/${id}`).expect(204)
 
-      const response = await request(app.getHttpServer()).get('/vehicles').expect(200)
+      const response = await http().get('/vehicles').expect(200)
 
       expect(response.body).toMatchObject({ total: 0 })
     })
@@ -158,7 +168,7 @@ describe('Vehicles (e2e)', () => {
       const customerId = await createCustomer()
       const id = await createVehicle(customerId)
 
-      const response = await request(app.getHttpServer())
+      const response = await http()
         .patch(`/vehicles/${id}`)
         .send({ brand: 'Honda', model: 'Civic', year: 2023 })
         .expect(200)
@@ -170,10 +180,7 @@ describe('Vehicles (e2e)', () => {
       const customerId = await createCustomer()
       const id = await createVehicle(customerId)
 
-      await request(app.getHttpServer())
-        .patch(`/vehicles/${id}`)
-        .send({ plate: 'XYZ9Z99' })
-        .expect(400)
+      await http().patch(`/vehicles/${id}`).send({ plate: 'XYZ9Z99' }).expect(400)
     })
   })
 
@@ -182,10 +189,10 @@ describe('Vehicles (e2e)', () => {
       const customerId = await createCustomer()
       const id = await createVehicle(customerId)
 
-      await request(app.getHttpServer()).delete(`/vehicles/${id}`).expect(204)
-      await request(app.getHttpServer()).get(`/vehicles/${id}`).expect(404)
+      await http().delete(`/vehicles/${id}`).expect(204)
+      await http().get(`/vehicles/${id}`).expect(404)
 
-      await request(app.getHttpServer())
+      await http()
         .post('/vehicles')
         .send({ customerId, plate: 'ABC1D23', brand: 'Honda', model: 'Civic', year: 2023 })
         .expect(409)

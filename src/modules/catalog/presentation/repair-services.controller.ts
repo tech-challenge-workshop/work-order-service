@@ -19,12 +19,15 @@ import { GetRepairServiceUseCase } from '../application/use-cases/get-repair-ser
 import { ListRepairServicesUseCase } from '../application/use-cases/list-repair-services.use-case'
 import { UpdateRepairServiceUseCase } from '../application/use-cases/update-repair-service.use-case'
 import { RepairServiceExceptionFilter } from './filters/repair-service-exception.filter'
+import { Roles } from '../../../shared/auth/roles.decorator'
+import { UserRole } from '../../../shared/auth/jwt-payload'
 import { CreateRepairServiceDto } from './dtos/create-repair-service.dto'
 import { ListRepairServicesQuery } from './dtos/list-repair-services.query'
 import { UpdateRepairServiceDto } from './dtos/update-repair-service.dto'
 
 @ApiTags('repair-services')
 @ApiBearerAuth()
+@Roles(UserRole.ADMIN)
 @UseFilters(RepairServiceExceptionFilter)
 @Controller('repair-services')
 export class RepairServicesController {

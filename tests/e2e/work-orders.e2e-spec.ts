@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { INestApplication, ValidationPipe } from '@nestjs/common'
 import request from 'supertest'
 import { App } from 'supertest/types'
+import { JwtService } from '@nestjs/jwt'
 import { AppModule } from '../../src/app.module'
 import { PrismaService } from '../../src/shared/database/prisma.service'
 
@@ -10,6 +11,8 @@ const MISSING_UUID = '00000000-0000-4000-8000-000000000000'
 describe('WorkOrders (e2e)', () => {
   let app: INestApplication<App>
   let prisma: PrismaService
+  let jwt: JwtService
+  let bearer: string
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -23,6 +26,8 @@ describe('WorkOrders (e2e)', () => {
     await app.init()
 
     prisma = app.get(PrismaService)
+    jwt = app.get(JwtService)
+    bearer = `Bearer ${jwt.sign({ sub: 'e2e-admin', role: 'admin' })}`
   })
 
   beforeEach(async () => {
@@ -40,7 +45,18 @@ describe('WorkOrders (e2e)', () => {
     await app.close()
   })
 
-  const http = () => request(app.getHttpServer())
+  const http = () => {
+    const server = app.getHttpServer()
+    return {
+      get: (url: string) => request(server).get(url).set('Authorization', bearer),
+      post: (url: string) => request(server).post(url).set('Authorization', bearer),
+    }
+  }
+
+  const asCustomer = (sub: string, url: string) =>
+    request(app.getHttpServer())
+      .get(url)
+      .set('Authorization', `Bearer ${jwt.sign({ sub, role: 'customer' })}`)
 
   async function createCustomer(document = '390.533.447-05'): Promise<string> {
     const res = await http().post('/customers').send({ name: 'John Doe', document }).expect(201)
@@ -148,6 +164,20 @@ describe('WorkOrders (e2e)', () => {
 
     it('returns 404 for an unknown id', async () => {
       await http().get(`/work-orders/${MISSING_UUID}`).expect(404)
+    })
+
+    it('lets a customer read their own work order but not someone else’s', async () => {
+      const customerId = await createCustomer()
+      const vehicleId = await createVehicle(customerId)
+      const serviceId = await createService()
+      const created = await http()
+        .post('/work-orders')
+        .send({ customerId, vehicleId, serviceIds: [serviceId] })
+        .expect(201)
+      const id = (created.body as { id: string }).id
+
+      await asCustomer(customerId, `/work-orders/${id}`).expect(200)
+      await asCustomer(MISSING_UUID, `/work-orders/${id}`).expect(403)
     })
   })
 

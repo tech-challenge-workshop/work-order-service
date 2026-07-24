@@ -1,7 +1,8 @@
 import {
-  Body,
   Controller,
+  ForbiddenException,
   Get,
+  Body,
   Param,
   ParseUUIDPipe,
   Post,
@@ -15,6 +16,10 @@ import { ListWorkOrdersUseCase } from '../application/use-cases/list-work-orders
 import { WorkOrderExceptionFilter } from './filters/work-order-exception.filter'
 import { OpenWorkOrderDto } from './dtos/open-work-order.dto'
 import { ListWorkOrdersQuery } from './dtos/list-work-orders.query'
+import { Roles } from '../../../shared/auth/roles.decorator'
+import { CurrentUser } from '../../../shared/auth/current-user.decorator'
+import { UserRole } from '../../../shared/auth/jwt-payload'
+import type { JwtPayload } from '../../../shared/auth/jwt-payload'
 
 @ApiTags('work-orders')
 @ApiBearerAuth()
@@ -28,20 +33,27 @@ export class WorkOrdersController {
   ) {}
 
   @Post()
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Open a new work order' })
   open(@Body() dto: OpenWorkOrderDto) {
     return this.openWorkOrder.execute(dto)
   }
 
   @Get()
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'List active work orders (excludes terminal statuses)' })
   list(@Query() query: ListWorkOrdersQuery) {
     return this.listWorkOrders.execute(query)
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get a work order by id, including items and status history' })
-  get(@Param('id', ParseUUIDPipe) id: string) {
-    return this.getWorkOrder.execute(id)
+  @Roles(UserRole.ADMIN, UserRole.CUSTOMER)
+  @ApiOperation({ summary: 'Get a work order by id (customers may only read their own)' })
+  async get(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
+    const workOrder = await this.getWorkOrder.execute(id)
+    if (user.role === UserRole.CUSTOMER && workOrder.customerId !== user.sub) {
+      throw new ForbiddenException('Customers may only read their own work orders')
+    }
+    return workOrder
   }
 }

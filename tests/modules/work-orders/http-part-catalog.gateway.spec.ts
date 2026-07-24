@@ -27,7 +27,7 @@ describe('HttpPartCatalogGateway', () => {
     const result = await gateway().findByIds(['p-1'])
 
     expect(result).toEqual(snapshots)
-    expect(fetchSpy).toHaveBeenCalledWith('http://execution.test/parts?ids=p-1')
+    expect(fetchSpy).toHaveBeenCalledWith('http://execution.test/parts/prices?ids=p-1')
   })
 
   it('throws when the service responds with an error', async () => {

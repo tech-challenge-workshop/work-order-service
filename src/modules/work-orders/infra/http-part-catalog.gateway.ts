@@ -15,7 +15,7 @@ export class HttpPartCatalogGateway implements PartCatalogGateway {
       return []
     }
 
-    const url = `${this.baseUrl}/parts?ids=${ids.join(',')}`
+    const url = `${this.baseUrl}/parts/prices?ids=${ids.join(',')}`
     const response = await fetch(url)
     if (!response.ok) {
       throw new Error(`Failed to fetch parts from execution service: ${response.status}`)

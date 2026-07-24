@@ -19,12 +19,15 @@ import { GetVehicleUseCase } from '../application/use-cases/get-vehicle.use-case
 import { ListVehiclesUseCase } from '../application/use-cases/list-vehicles.use-case'
 import { UpdateVehicleUseCase } from '../application/use-cases/update-vehicle.use-case'
 import { VehicleExceptionFilter } from './filters/vehicle-exception.filter'
+import { Roles } from '../../../shared/auth/roles.decorator'
+import { UserRole } from '../../../shared/auth/jwt-payload'
 import { CreateVehicleDto } from './dtos/create-vehicle.dto'
 import { ListVehiclesQuery } from './dtos/list-vehicles.query'
 import { UpdateVehicleDto } from './dtos/update-vehicle.dto'
 
 @ApiTags('vehicles')
 @ApiBearerAuth()
+@Roles(UserRole.ADMIN)
 @UseFilters(VehicleExceptionFilter)
 @Controller('vehicles')
 export class VehiclesController {
