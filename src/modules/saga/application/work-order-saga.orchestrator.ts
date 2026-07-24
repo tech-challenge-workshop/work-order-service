@@ -4,6 +4,8 @@ import type { WorkOrderRepository } from '../../work-orders/application/ports/wo
 import { WorkOrder } from '../../work-orders/domain/work-order.entity'
 import { MESSAGE_BUS } from '../../../shared/messaging/message-bus'
 import type { MessageBus } from '../../../shared/messaging/message-bus'
+import { NOTIFICATION_PORT } from '../../../shared/notifications/notification.port'
+import type { NotificationPort } from '../../../shared/notifications/notification.port'
 import { SagaInstance } from '../domain/saga-instance.entity'
 import {
   SagaMessage,
@@ -22,6 +24,8 @@ export class WorkOrderSagaOrchestrator {
     private readonly workOrders: WorkOrderRepository,
     @Inject(MESSAGE_BUS)
     private readonly publisher: MessageBus,
+    @Inject(NOTIFICATION_PORT)
+    private readonly notifier: NotificationPort,
   ) {}
 
   async onWorkOrderOpened(payload: WorkOrderOpenedPayload): Promise<void> {
@@ -136,8 +140,20 @@ export class WorkOrderSagaOrchestrator {
       throw new Error(`Work order not found for saga: ${workOrderId}`)
     }
 
+    const previousStatus = workOrder.status
     change(workOrder)
     await this.workOrders.update(workOrder)
+
+    if (workOrder.status !== previousStatus) {
+      const lastChange = workOrder.history[workOrder.history.length - 1]
+      await this.notifier.notifyStatusChange({
+        workOrderId: workOrder.id,
+        customerId: workOrder.customerId,
+        previousStatus,
+        newStatus: workOrder.status,
+        occurredAt: lastChange.changedAt,
+      })
+    }
     return workOrder
   }
 

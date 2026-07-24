@@ -7,6 +7,7 @@ import { WorkOrderItem, WorkOrderItemKind } from '../domain/value-objects/work-o
 import { WorkOrderStatus } from '../domain/value-objects/work-order-status'
 import { WorkOrderRepository } from '../application/ports/work-order.repository'
 import type {
+  ExecutionDuration,
   ListWorkOrdersParams,
   PaginatedWorkOrders,
   WorkOrderSummary,
@@ -139,6 +140,36 @@ export class PrismaWorkOrderRepository implements WorkOrderRepository {
       items: rows.map((row) => this.toSummary(row)),
       total: countRows[0]?.count ?? 0,
     }
+  }
+
+  async getExecutionDurations(): Promise<ExecutionDuration[]> {
+    const rows = await this.prisma.workOrderStatusHistory.findMany({
+      where: { status: { in: [WorkOrderStatus.IN_EXECUTION, WorkOrderStatus.FINISHED] } },
+      orderBy: { changedAt: 'asc' },
+      select: { workOrderId: true, status: true, changedAt: true },
+    })
+
+    const startedAt = new Map<string, Date>()
+    const durations: ExecutionDuration[] = []
+    for (const row of rows) {
+      const status = row.status as unknown as WorkOrderStatus
+      if (status === WorkOrderStatus.IN_EXECUTION) {
+        if (!startedAt.has(row.workOrderId)) {
+          startedAt.set(row.workOrderId, row.changedAt)
+        }
+      } else {
+        const started = startedAt.get(row.workOrderId)
+        if (started) {
+          durations.push({
+            workOrderId: row.workOrderId,
+            startedAt: started,
+            finishedAt: row.changedAt,
+          })
+          startedAt.delete(row.workOrderId)
+        }
+      }
+    }
+    return durations
   }
 
   private toSummary(row: WorkOrderSummaryRow): WorkOrderSummary {

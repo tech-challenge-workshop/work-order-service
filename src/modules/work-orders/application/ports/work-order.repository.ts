@@ -24,9 +24,16 @@ export interface PaginatedWorkOrders {
   total: number
 }
 
+export interface ExecutionDuration {
+  workOrderId: string
+  startedAt: Date
+  finishedAt: Date
+}
+
 export interface WorkOrderRepository {
   create(workOrder: WorkOrder): Promise<void>
   update(workOrder: WorkOrder): Promise<void>
   findById(id: string): Promise<WorkOrder | null>
   listActive(params: ListWorkOrdersParams): Promise<PaginatedWorkOrders>
+  getExecutionDurations(): Promise<ExecutionDuration[]>
 }

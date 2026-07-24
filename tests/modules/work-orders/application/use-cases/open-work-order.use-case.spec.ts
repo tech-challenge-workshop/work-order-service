@@ -19,6 +19,7 @@ import {
 import { FakePartCatalogGateway, FakeWorkOrderRepository } from '../../work-order.fixtures'
 import { Plate } from '../../../../../src/modules/vehicles/domain/value-objects/plate'
 import { FakeMessagePublisher } from '../../../../shared/fake-message-publisher'
+import { FakeNotificationPort } from '../../../../shared/notifications/fake-notification.port'
 import { SagaMessage } from '../../../../../src/shared/messaging/saga-messages'
 
 describe('OpenWorkOrderUseCase', () => {
@@ -28,6 +29,7 @@ describe('OpenWorkOrderUseCase', () => {
   let repairServices: FakeRepairServiceRepository
   let partCatalog: FakePartCatalogGateway
   let publisher: FakeMessagePublisher
+  let notifier: FakeNotificationPort
   let useCase: OpenWorkOrderUseCase
 
   beforeEach(() => {
@@ -37,6 +39,7 @@ describe('OpenWorkOrderUseCase', () => {
     repairServices = new FakeRepairServiceRepository()
     partCatalog = new FakePartCatalogGateway()
     publisher = new FakeMessagePublisher()
+    notifier = new FakeNotificationPort()
     useCase = new OpenWorkOrderUseCase(
       workOrders,
       customers,
@@ -44,6 +47,7 @@ describe('OpenWorkOrderUseCase', () => {
       repairServices,
       partCatalog,
       publisher,
+      notifier,
     )
   })
 
@@ -79,6 +83,13 @@ describe('OpenWorkOrderUseCase', () => {
     expect(output.totalCents).toBe(15000)
     expect(publisher.patterns()).toContain(SagaMessage.WorkOrderOpened)
     expect(publisher.lastPayload()).toMatchObject({ workOrderId: output.id, totalCents: 15000 })
+    expect(notifier.notifications).toHaveLength(1)
+    expect(notifier.notifications[0]).toMatchObject({
+      workOrderId: output.id,
+      customerId: customer.id,
+      previousStatus: null,
+      newStatus: WorkOrderStatus.RECEIVED,
+    })
   })
 
   it('resolves parts from the catalog gateway with the requested quantity', async () => {

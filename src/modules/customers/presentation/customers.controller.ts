@@ -12,16 +12,18 @@ import {
   Query,
   UseFilters,
 } from '@nestjs/common'
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger'
 import { CreateCustomerUseCase } from '../application/use-cases/create-customer.use-case'
 import { DeleteCustomerUseCase } from '../application/use-cases/delete-customer.use-case'
 import { GetCustomerUseCase } from '../application/use-cases/get-customer.use-case'
 import { ListCustomersUseCase } from '../application/use-cases/list-customers.use-case'
+import { LookupCustomerByDocumentUseCase } from '../application/use-cases/lookup-customer-by-document.use-case'
 import { UpdateCustomerUseCase } from '../application/use-cases/update-customer.use-case'
 import { CustomerExceptionFilter } from './filters/customer-exception.filter'
 import { CreateCustomerDto } from './dtos/create-customer.dto'
 import { ListCustomersQuery } from './dtos/list-customers.query'
 import { UpdateCustomerDto } from './dtos/update-customer.dto'
+import { Public } from '../../../shared/auth/public.decorator'
 import { Roles } from '../../../shared/auth/roles.decorator'
 import { UserRole } from '../../../shared/auth/jwt-payload'
 
@@ -34,6 +36,7 @@ export class CustomersController {
   constructor(
     private readonly createCustomer: CreateCustomerUseCase,
     private readonly getCustomer: GetCustomerUseCase,
+    private readonly lookupByDocument: LookupCustomerByDocumentUseCase,
     private readonly listCustomers: ListCustomersUseCase,
     private readonly updateCustomer: UpdateCustomerUseCase,
     private readonly deleteCustomer: DeleteCustomerUseCase,
@@ -49,6 +52,16 @@ export class CustomersController {
   @ApiOperation({ summary: 'List customers (paginated, excludes deleted)' })
   list(@Query() query: ListCustomersQuery) {
     return this.listCustomers.execute(query)
+  }
+
+  @Get('lookup')
+  @Public()
+  @ApiOperation({
+    summary: 'Look up an active customer by CPF/CNPJ (service-to-service, used by the auth Lambda)',
+  })
+  @ApiQuery({ name: 'document', required: true, description: 'CPF or CNPJ, with or without mask' })
+  lookup(@Query('document') document: string) {
+    return this.lookupByDocument.execute(document ?? '')
   }
 
   @Get(':id')

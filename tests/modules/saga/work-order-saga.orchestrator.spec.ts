@@ -5,12 +5,14 @@ import { SagaStatus } from '../../../src/modules/saga/domain/saga-instance.entit
 import { SagaMessage } from '../../../src/shared/messaging/saga-messages'
 import { FakeWorkOrderRepository, openWorkOrder } from '../work-orders/work-order.fixtures'
 import { FakeMessagePublisher } from '../../shared/fake-message-publisher'
+import { FakeNotificationPort } from '../../shared/notifications/fake-notification.port'
 import { FakeSagaInstanceRepository } from './saga.fixtures'
 
 describe('WorkOrderSagaOrchestrator', () => {
   let sagas: FakeSagaInstanceRepository
   let workOrders: FakeWorkOrderRepository
   let publisher: FakeMessagePublisher
+  let notifier: FakeNotificationPort
   let orchestrator: WorkOrderSagaOrchestrator
   let workOrder: WorkOrder
 
@@ -18,7 +20,8 @@ describe('WorkOrderSagaOrchestrator', () => {
     sagas = new FakeSagaInstanceRepository()
     workOrders = new FakeWorkOrderRepository()
     publisher = new FakeMessagePublisher()
-    orchestrator = new WorkOrderSagaOrchestrator(sagas, workOrders, publisher)
+    notifier = new FakeNotificationPort()
+    orchestrator = new WorkOrderSagaOrchestrator(sagas, workOrders, publisher, notifier)
     workOrder = openWorkOrder()
     workOrders.workOrders.push(workOrder)
   })
@@ -70,6 +73,12 @@ describe('WorkOrderSagaOrchestrator', () => {
     await orchestrator.onQuoteApproved({ workOrderId: workOrder.id })
     await orchestrator.onPaymentConfirmed({ workOrderId: workOrder.id })
     expect(workOrder.status).toBe(WorkOrderStatus.IN_EXECUTION)
+
+    expect(notifier.notifications.map((n) => [n.previousStatus, n.newStatus])).toEqual([
+      [WorkOrderStatus.RECEIVED, WorkOrderStatus.IN_DIAGNOSIS],
+      [WorkOrderStatus.IN_DIAGNOSIS, WorkOrderStatus.AWAITING_APPROVAL],
+      [WorkOrderStatus.AWAITING_APPROVAL, WorkOrderStatus.IN_EXECUTION],
+    ])
   })
 
   it('cancels without compensation when parts reservation fails', async () => {

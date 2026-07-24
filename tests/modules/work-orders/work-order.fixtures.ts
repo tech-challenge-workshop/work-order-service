@@ -12,6 +12,7 @@ import {
 } from '../../../src/modules/work-orders/domain/value-objects/work-order-status'
 import type {
   WorkOrderRepository,
+  ExecutionDuration,
   ListWorkOrdersParams,
   PaginatedWorkOrders,
 } from '../../../src/modules/work-orders/application/ports/work-order.repository'
@@ -44,6 +45,11 @@ export function openWorkOrder(
 export class FakeWorkOrderRepository implements WorkOrderRepository {
   workOrders: WorkOrder[] = []
   updateCalls = 0
+  executionDurations: ExecutionDuration[] = []
+
+  getExecutionDurations(): Promise<ExecutionDuration[]> {
+    return Promise.resolve(this.executionDurations)
+  }
 
   create(workOrder: WorkOrder): Promise<void> {
     this.workOrders.push(workOrder)

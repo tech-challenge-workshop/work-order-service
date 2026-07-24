@@ -7,6 +7,7 @@ import { WORK_ORDER_REPOSITORY } from './application/ports/work-order.repository
 import { PART_CATALOG_GATEWAY } from './application/ports/part-catalog.gateway'
 import { OpenWorkOrderUseCase } from './application/use-cases/open-work-order.use-case'
 import { GetWorkOrderUseCase } from './application/use-cases/get-work-order.use-case'
+import { GetExecutionTimeMetricsUseCase } from './application/use-cases/get-execution-time-metrics.use-case'
 import { ListWorkOrdersUseCase } from './application/use-cases/list-work-orders.use-case'
 import { HttpPartCatalogGateway } from './infra/http-part-catalog.gateway'
 import { PrismaWorkOrderRepository } from './infra/prisma-work-order.repository'
@@ -18,6 +19,7 @@ import { WorkOrdersController } from './presentation/work-orders.controller'
   providers: [
     OpenWorkOrderUseCase,
     GetWorkOrderUseCase,
+    GetExecutionTimeMetricsUseCase,
     ListWorkOrdersUseCase,
     { provide: WORK_ORDER_REPOSITORY, useClass: PrismaWorkOrderRepository },
     { provide: PART_CATALOG_GATEWAY, useClass: HttpPartCatalogGateway },

@@ -96,6 +96,43 @@ describe('Customers (e2e)', () => {
     })
   })
 
+  describe('GET /customers/lookup', () => {
+    it('is public and returns the customer for a matching document', async () => {
+      const { id } = await createCustomer({ name: 'John Doe', document: VALID_CPF })
+
+      const res = await request(app.getHttpServer())
+        .get('/customers/lookup')
+        .query({ document: '39053344705' })
+        .expect(200)
+
+      expect(res.body).toMatchObject({ id, document: VALID_CPF, documentType: 'CPF' })
+    })
+
+    it('returns 400 for an invalid document', async () => {
+      await request(app.getHttpServer())
+        .get('/customers/lookup')
+        .query({ document: '12345678900' })
+        .expect(400)
+    })
+
+    it('returns 404 when no customer has the document', async () => {
+      await request(app.getHttpServer())
+        .get('/customers/lookup')
+        .query({ document: VALID_CPF })
+        .expect(404)
+    })
+
+    it('returns 404 for a soft-deleted customer', async () => {
+      const { id } = await createCustomer({ name: 'John Doe', document: VALID_CPF })
+      await http().delete(`/customers/${id}`).expect(204)
+
+      await request(app.getHttpServer())
+        .get('/customers/lookup')
+        .query({ document: VALID_CPF })
+        .expect(404)
+    })
+  })
+
   describe('GET /customers/:id', () => {
     it('returns the customer', async () => {
       const { id } = await createCustomer({ name: 'John Doe', document: VALID_CPF })

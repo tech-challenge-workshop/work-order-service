@@ -234,4 +234,42 @@ describe('WorkOrders (e2e)', () => {
       expect(res.body).toMatchObject({ total: 1 })
     })
   })
+
+  describe('GET /work-orders/metrics/execution-time', () => {
+    it('returns null average when there is no execution history', async () => {
+      const res = await http().get('/work-orders/metrics/execution-time').expect(200)
+      expect(res.body).toEqual({ sampleSize: 0, averageSeconds: null })
+    })
+
+    it('averages the seconds between IN_EXECUTION and FINISHED marks', async () => {
+      const customerId = await createCustomer()
+      const vehicleId = await createVehicle(customerId)
+      const serviceId = await createService()
+      const created = await http()
+        .post('/work-orders')
+        .send({ customerId, vehicleId, serviceIds: [serviceId] })
+        .expect(201)
+      const id = (created.body as { id: string }).id
+
+      await prisma.workOrderStatusHistory.createMany({
+        data: [
+          {
+            id: '00000000-0000-4000-8000-000000000101',
+            workOrderId: id,
+            status: 'IN_EXECUTION',
+            changedAt: new Date('2026-07-22T10:00:00Z'),
+          },
+          {
+            id: '00000000-0000-4000-8000-000000000102',
+            workOrderId: id,
+            status: 'FINISHED',
+            changedAt: new Date('2026-07-22T11:00:00Z'),
+          },
+        ],
+      })
+
+      const res = await http().get('/work-orders/metrics/execution-time').expect(200)
+      expect(res.body).toEqual({ sampleSize: 1, averageSeconds: 3600 })
+    })
+  })
 })

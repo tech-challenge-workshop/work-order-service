@@ -12,6 +12,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { OpenWorkOrderUseCase } from '../application/use-cases/open-work-order.use-case'
 import { GetWorkOrderUseCase } from '../application/use-cases/get-work-order.use-case'
+import { GetExecutionTimeMetricsUseCase } from '../application/use-cases/get-execution-time-metrics.use-case'
 import { ListWorkOrdersUseCase } from '../application/use-cases/list-work-orders.use-case'
 import { WorkOrderExceptionFilter } from './filters/work-order-exception.filter'
 import { OpenWorkOrderDto } from './dtos/open-work-order.dto'
@@ -30,6 +31,7 @@ export class WorkOrdersController {
     private readonly openWorkOrder: OpenWorkOrderUseCase,
     private readonly getWorkOrder: GetWorkOrderUseCase,
     private readonly listWorkOrders: ListWorkOrdersUseCase,
+    private readonly getExecutionTimeMetrics: GetExecutionTimeMetricsUseCase,
   ) {}
 
   @Post()
@@ -44,6 +46,15 @@ export class WorkOrdersController {
   @ApiOperation({ summary: 'List active work orders (excludes terminal statuses)' })
   list(@Query() query: ListWorkOrdersQuery) {
     return this.listWorkOrders.execute(query)
+  }
+
+  @Get('metrics/execution-time')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Average execution time (IN_EXECUTION → FINISHED) in seconds across finished orders',
+  })
+  metricsExecutionTime() {
+    return this.getExecutionTimeMetrics.execute()
   }
 
   @Get(':id')

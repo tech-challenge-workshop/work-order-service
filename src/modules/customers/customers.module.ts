@@ -4,6 +4,7 @@ import { CreateCustomerUseCase } from './application/use-cases/create-customer.u
 import { DeleteCustomerUseCase } from './application/use-cases/delete-customer.use-case'
 import { GetCustomerUseCase } from './application/use-cases/get-customer.use-case'
 import { ListCustomersUseCase } from './application/use-cases/list-customers.use-case'
+import { LookupCustomerByDocumentUseCase } from './application/use-cases/lookup-customer-by-document.use-case'
 import { UpdateCustomerUseCase } from './application/use-cases/update-customer.use-case'
 import { PrismaCustomerRepository } from './infra/prisma-customer.repository'
 import { CustomersController } from './presentation/customers.controller'
@@ -14,6 +15,7 @@ import { CustomersController } from './presentation/customers.controller'
     CreateCustomerUseCase,
     GetCustomerUseCase,
     ListCustomersUseCase,
+    LookupCustomerByDocumentUseCase,
     UpdateCustomerUseCase,
     DeleteCustomerUseCase,
     { provide: CUSTOMER_REPOSITORY, useClass: PrismaCustomerRepository },
