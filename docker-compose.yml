@@ -1,4 +1,24 @@
 services:
+  # This is the shared local Datadog Agent for the whole saga — same convention
+  # as the RabbitMQ broker below: start it once here, billing-service and
+  # execution-service just point DD_AGENT_HOST=localhost at these published
+  # ports (their apps run on the host via `pnpm start:dev`, same as this one).
+  datadog-agent:
+    image: registry.datadoghq.com/agent:7
+    container_name: work-order-datadog-agent
+    environment:
+      - DD_API_KEY=${DD_API_KEY}
+      - DD_SITE=${DD_SITE:-us5.datadoghq.com}
+      - DD_ENV=${DD_ENV:-development}
+      - DD_APM_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_HEALTH_METRICS_ENABLED=true
+    ports:
+      - '8126:8126' # APM
+      - '8125:8125/udp' # dogstatsd
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
   postgres:
     image: postgres:16-alpine
     container_name: work-order-postgres
