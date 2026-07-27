@@ -7,7 +7,7 @@ jest.mock('dd-trace', () => ({
   },
 }))
 
-import { DatadogLoggerService } from '../../../src/shared/logging/datadog-logger.service'
+import { DatadogLoggerService } from '../../../src/shared/observability/datadog-logger.service'
 
 describe('DatadogLoggerService', () => {
   let logger: DatadogLoggerService
@@ -55,6 +55,19 @@ describe('DatadogLoggerService', () => {
     expect(entry.level).toBe('error')
     expect(entry.message).toBe('saga.compensate')
     expect(entry.extra).toBe('data')
+  })
+
+  it('preserves the stack trace when error() receives one', () => {
+    logger.error('boom', 'Error: boom\n    at foo (/x.ts:1:1)', 'CtxError')
+    const entry = lastEntry()
+    expect(entry.level).toBe('error')
+    expect(entry.stack).toBe('Error: boom\n    at foo (/x.ts:1:1)')
+  })
+
+  it('omits the stack field when error() does not receive a trace', () => {
+    logger.error('boom')
+    const entry = lastEntry()
+    expect(entry).not.toHaveProperty('stack')
   })
 
   it('stringifies an object message without a string event field', () => {

@@ -7,4 +7,4 @@ import { TRACING_PORT } from './tracing.port'
   providers: [{ provide: TRACING_PORT, useClass: DatadogTracingService }],
   exports: [TRACING_PORT],
 })
-export class TracingModule {}
+export class ObservabilityModule {}

@@ -4,7 +4,7 @@ import { LoggerService } from '@nestjs/common'
 const ddTrace = require('dd-trace') as { default: typeof import('dd-trace') }
 
 export class DatadogLoggerService implements LoggerService {
-  private write(level: string, message: unknown, context?: string): void {
+  private write(level: string, message: unknown, context?: string, stack?: string): void {
     const tracer = ddTrace.default
     const span = tracer.scope().active()
     const structuredMessage =
@@ -22,6 +22,7 @@ export class DatadogLoggerService implements LoggerService {
       level,
       message: normalizedMessage,
       context,
+      ...(stack ? { stack } : {}),
       service: process.env.DD_SERVICE ?? 'work-order-service',
       'dd.trace_id': span?.context().toTraceId() ?? '',
       'dd.span_id': span?.context().toSpanId() ?? '',
@@ -38,7 +39,7 @@ export class DatadogLoggerService implements LoggerService {
   }
 
   error(message: unknown, trace?: string, context?: string): void {
-    this.write('error', message, context)
+    this.write('error', message, context, trace)
   }
 
   warn(message: unknown, context?: string): void {

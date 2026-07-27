@@ -6,7 +6,7 @@ import { SagaMessage } from '../../../src/shared/messaging/saga-messages'
 import { FakeWorkOrderRepository, openWorkOrder } from '../work-orders/work-order.fixtures'
 import { FakeMessagePublisher } from '../../shared/fake-message-publisher'
 import { FakeNotificationPort } from '../../shared/notifications/fake-notification.port'
-import { FakeTracingPort } from '../../shared/fake-tracing.port'
+import { FakeTracingPort } from '../../shared/observability/fake-tracing.port'
 import { FakeSagaInstanceRepository } from './saga.fixtures'
 
 describe('WorkOrderSagaOrchestrator', () => {

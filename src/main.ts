@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config'
 import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { AppModule } from './app.module'
-import { DatadogLoggerService } from './shared/logging/datadog-logger.service'
+import { DatadogLoggerService } from './shared/observability/datadog-logger.service'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)
