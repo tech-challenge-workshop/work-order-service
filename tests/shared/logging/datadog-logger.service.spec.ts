@@ -11,12 +11,16 @@ import { DatadogLoggerService } from '../../../src/shared/logging/datadog-logger
 
 describe('DatadogLoggerService', () => {
   let logger: DatadogLoggerService
-  let writeSpy: jest.SpyInstance
+  let lastWritten: string
 
   beforeEach(() => {
     logger = new DatadogLoggerService()
-    writeSpy = jest.spyOn(process.stdout, 'write').mockImplementation(() => true)
-    mockScope.active.mockReturnValue(mockActiveSpan as unknown)
+    lastWritten = ''
+    jest.spyOn(process.stdout, 'write').mockImplementation((chunk: string | Uint8Array) => {
+      lastWritten = chunk.toString()
+      return true
+    })
+    mockScope.active.mockReturnValue(mockActiveSpan)
     mockActiveSpan.context.mockReturnValue({
       toTraceId: () => 'trace-123',
       toSpanId: () => 'span-456',
@@ -27,12 +31,12 @@ describe('DatadogLoggerService', () => {
   })
 
   afterEach(() => {
-    writeSpy.mockRestore()
+    jest.restoreAllMocks()
     jest.clearAllMocks()
   })
 
   function lastEntry(): Record<string, unknown> {
-    return JSON.parse((writeSpy.mock.calls[0][0] as string).trim())
+    return JSON.parse(lastWritten.trim()) as Record<string, unknown>
   }
 
   it('logs a plain string message via log()', () => {

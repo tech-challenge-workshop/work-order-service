@@ -15,6 +15,7 @@ describe('tracer', () => {
     const init = jest.fn()
     jest.doMock('dd-trace', () => ({ init }))
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     require('../src/tracer')
 
     expect(init).not.toHaveBeenCalled()
@@ -29,6 +30,7 @@ describe('tracer', () => {
     const init = jest.fn()
     jest.doMock('dd-trace', () => ({ init }))
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     require('../src/tracer')
 
     expect(init).toHaveBeenCalledWith({
@@ -49,6 +51,7 @@ describe('tracer', () => {
     const init = jest.fn()
     jest.doMock('dd-trace', () => ({ init }))
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     require('../src/tracer')
 
     expect(init).toHaveBeenCalledWith({
