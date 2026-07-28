@@ -272,9 +272,8 @@ Kubernetes manifests (`Deployment`, `Service`, `ConfigMap`, `Secret`, `HPA`) liv
 **Why the manifests are not in this repository.** The four services are always
 deployed to the same cluster, behind the same Kong gateway, by the same
 pipeline. Keeping a `k8s/` directory per repository would duplicate the
-namespace, the `Gateway`, the `HTTPRoute` set, the Kong plugins and the Datadog
-values four times over, and those copies would drift the first time a route
-changed. Centralising them keeps one kustomize tree that renders the whole
+namespace, the Kong ingresses and plugins and the Datadog values four times
+over, and those copies would drift the first time a route changed. Centralising them keeps one kustomize tree that renders the whole
 platform and is validated by `kubeconform` on every pull request. The trade-off
 is deliberate: this repository owns its application and its image, the platform
 repository owns how the platform is assembled.
