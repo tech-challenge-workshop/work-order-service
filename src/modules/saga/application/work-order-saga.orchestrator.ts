@@ -6,6 +6,8 @@ import { MESSAGE_BUS } from '../../../shared/messaging/message-bus'
 import type { MessageBus } from '../../../shared/messaging/message-bus'
 import { NOTIFICATION_PORT } from '../../../shared/notifications/notification.port'
 import type { NotificationPort } from '../../../shared/notifications/notification.port'
+import { TRACING_PORT } from '../../../shared/observability/tracing.port'
+import type { TracingPort } from '../../../shared/observability/tracing.port'
 import { SagaInstance } from '../domain/saga-instance.entity'
 import {
   SagaMessage,
@@ -26,104 +28,144 @@ export class WorkOrderSagaOrchestrator {
     private readonly publisher: MessageBus,
     @Inject(NOTIFICATION_PORT)
     private readonly notifier: NotificationPort,
+    @Inject(TRACING_PORT)
+    private readonly tracing: TracingPort,
   ) {}
 
-  async onWorkOrderOpened(payload: WorkOrderOpenedPayload): Promise<void> {
-    const existing = await this.sagas.findByWorkOrderId(payload.workOrderId)
-    if (existing) {
-      return
-    }
+  onWorkOrderOpened(payload: WorkOrderOpenedPayload): Promise<void> {
+    return this.tracing.withSpan(
+      'saga.work_order_opened',
+      { work_order_id: payload.workOrderId },
+      async () => {
+        const existing = await this.sagas.findByWorkOrderId(payload.workOrderId)
+        if (existing) {
+          return
+        }
 
-    const saga = SagaInstance.start(payload.workOrderId)
-    await this.sagas.create(saga)
+        const saga = SagaInstance.start(payload.workOrderId)
+        await this.sagas.create(saga)
 
-    await this.publisher.publish(SagaMessage.ReserveParts, {
-      workOrderId: payload.workOrderId,
-      parts: payload.parts,
-    })
+        await this.publisher.publish(SagaMessage.ReserveParts, {
+          workOrderId: payload.workOrderId,
+          parts: payload.parts,
+        })
+      },
+    )
   }
 
-  async onPartsReserved(payload: WorkOrderRefPayload): Promise<void> {
-    const saga = await this.runningSaga(payload.workOrderId)
-    if (!saga || saga.partsReserved) {
-      return
-    }
+  onPartsReserved(payload: WorkOrderRefPayload): Promise<void> {
+    return this.tracing.withSpan(
+      'saga.parts_reserved',
+      { work_order_id: payload.workOrderId },
+      async () => {
+        const saga = await this.runningSaga(payload.workOrderId)
+        if (!saga || saga.partsReserved) {
+          return
+        }
 
-    saga.markPartsReserved()
-    const workOrder = await this.transition(payload.workOrderId, (order) => order.startDiagnosis())
-    await this.sagas.update(saga)
+        saga.markPartsReserved()
+        const workOrder = await this.transition(payload.workOrderId, (order) =>
+          order.startDiagnosis(),
+        )
+        await this.sagas.update(saga)
 
-    await this.publisher.publish(SagaMessage.GenerateQuote, {
-      workOrderId: payload.workOrderId,
-      totalCents: workOrder.totalCents,
-    })
+        await this.publisher.publish(SagaMessage.GenerateQuote, {
+          workOrderId: payload.workOrderId,
+          totalCents: workOrder.totalCents,
+        })
+      },
+    )
   }
 
-  async onPartsReservationFailed(payload: WorkOrderRefPayload): Promise<void> {
-    await this.compensate(payload.workOrderId)
+  onPartsReservationFailed(payload: WorkOrderRefPayload): Promise<void> {
+    return this.compensate(payload.workOrderId)
   }
 
-  async onQuoteGenerated(payload: WorkOrderRefPayload): Promise<void> {
-    const saga = await this.runningSaga(payload.workOrderId)
-    if (!saga || saga.quoteGenerated) {
-      return
-    }
+  onQuoteGenerated(payload: WorkOrderRefPayload): Promise<void> {
+    return this.tracing.withSpan(
+      'saga.quote_generated',
+      { work_order_id: payload.workOrderId },
+      async () => {
+        const saga = await this.runningSaga(payload.workOrderId)
+        if (!saga || saga.quoteGenerated) {
+          return
+        }
 
-    saga.markQuoteGenerated()
-    await this.transition(payload.workOrderId, (order) => order.requestApproval())
-    await this.sagas.update(saga)
+        saga.markQuoteGenerated()
+        await this.transition(payload.workOrderId, (order) => order.requestApproval())
+        await this.sagas.update(saga)
+      },
+    )
   }
 
-  async onQuoteApproved(payload: WorkOrderRefPayload): Promise<void> {
-    const saga = await this.runningSaga(payload.workOrderId)
-    if (!saga || saga.paymentConfirmed) {
-      return
-    }
+  onQuoteApproved(payload: WorkOrderRefPayload): Promise<void> {
+    return this.tracing.withSpan(
+      'saga.quote_approved',
+      { work_order_id: payload.workOrderId },
+      async () => {
+        const saga = await this.runningSaga(payload.workOrderId)
+        if (!saga || saga.paymentConfirmed) {
+          return
+        }
 
-    saga.markPaymentRequested()
-    await this.sagas.update(saga)
+        saga.markPaymentRequested()
+        await this.sagas.update(saga)
 
-    await this.publisher.publish(SagaMessage.ConfirmPayment, {
-      workOrderId: payload.workOrderId,
-    })
+        await this.publisher.publish(SagaMessage.ConfirmPayment, {
+          workOrderId: payload.workOrderId,
+        })
+      },
+    )
   }
 
-  async onQuoteRejected(payload: WorkOrderRefPayload): Promise<void> {
-    await this.compensate(payload.workOrderId)
+  onQuoteRejected(payload: WorkOrderRefPayload): Promise<void> {
+    return this.compensate(payload.workOrderId)
   }
 
-  async onPaymentConfirmed(payload: WorkOrderRefPayload): Promise<void> {
-    const saga = await this.runningSaga(payload.workOrderId)
-    if (!saga || saga.paymentConfirmed) {
-      return
-    }
+  onPaymentConfirmed(payload: WorkOrderRefPayload): Promise<void> {
+    return this.tracing.withSpan(
+      'saga.payment_confirmed',
+      { work_order_id: payload.workOrderId },
+      async () => {
+        const saga = await this.runningSaga(payload.workOrderId)
+        if (!saga || saga.paymentConfirmed) {
+          return
+        }
 
-    saga.markPaymentConfirmed()
-    await this.transition(payload.workOrderId, (order) => order.startExecution())
-    await this.sagas.update(saga)
+        saga.markPaymentConfirmed()
+        await this.transition(payload.workOrderId, (order) => order.startExecution())
+        await this.sagas.update(saga)
 
-    await this.publisher.publish(SagaMessage.StartExecution, {
-      workOrderId: payload.workOrderId,
-    })
+        await this.publisher.publish(SagaMessage.StartExecution, {
+          workOrderId: payload.workOrderId,
+        })
+      },
+    )
   }
 
-  async onPaymentFailed(payload: WorkOrderRefPayload): Promise<void> {
-    await this.compensate(payload.workOrderId)
+  onPaymentFailed(payload: WorkOrderRefPayload): Promise<void> {
+    return this.compensate(payload.workOrderId)
   }
 
-  async onExecutionCompleted(payload: WorkOrderRefPayload): Promise<void> {
-    const saga = await this.runningSaga(payload.workOrderId)
-    if (!saga) {
-      return
-    }
+  onExecutionCompleted(payload: WorkOrderRefPayload): Promise<void> {
+    return this.tracing.withSpan(
+      'saga.execution_completed',
+      { work_order_id: payload.workOrderId },
+      async () => {
+        const saga = await this.runningSaga(payload.workOrderId)
+        if (!saga) {
+          return
+        }
 
-    await this.transition(payload.workOrderId, (order) => order.finish())
-    saga.complete()
-    await this.sagas.update(saga)
+        await this.transition(payload.workOrderId, (order) => order.finish())
+        saga.complete()
+        await this.sagas.update(saga)
+      },
+    )
   }
 
-  async onExecutionFailed(payload: WorkOrderRefPayload): Promise<void> {
-    await this.compensate(payload.workOrderId)
+  onExecutionFailed(payload: WorkOrderRefPayload): Promise<void> {
+    return this.compensate(payload.workOrderId)
   }
 
   private async runningSaga(workOrderId: string): Promise<SagaInstance | null> {
@@ -157,24 +199,26 @@ export class WorkOrderSagaOrchestrator {
     return workOrder
   }
 
-  private async compensate(workOrderId: string): Promise<void> {
-    const saga = await this.runningSaga(workOrderId)
-    if (!saga) {
-      return
-    }
+  private compensate(workOrderId: string): Promise<void> {
+    return this.tracing.withSpan('saga.compensate', { work_order_id: workOrderId }, async () => {
+      const saga = await this.runningSaga(workOrderId)
+      if (!saga) {
+        return
+      }
 
-    if (saga.paymentConfirmed) {
-      await this.publisher.publish(SagaMessage.RefundPayment, { workOrderId })
-    }
-    if (saga.quoteGenerated) {
-      await this.publisher.publish(SagaMessage.CancelQuote, { workOrderId })
-    }
-    if (saga.partsReserved) {
-      await this.publisher.publish(SagaMessage.ReleaseParts, { workOrderId })
-    }
+      if (saga.paymentConfirmed) {
+        await this.publisher.publish(SagaMessage.RefundPayment, { workOrderId })
+      }
+      if (saga.quoteGenerated) {
+        await this.publisher.publish(SagaMessage.CancelQuote, { workOrderId })
+      }
+      if (saga.partsReserved) {
+        await this.publisher.publish(SagaMessage.ReleaseParts, { workOrderId })
+      }
 
-    await this.transition(workOrderId, (order) => order.cancel())
-    saga.cancel()
-    await this.sagas.update(saga)
+      await this.transition(workOrderId, (order) => order.cancel())
+      saga.cancel()
+      await this.sagas.update(saga)
+    })
   }
 }

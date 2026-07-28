@@ -1,4 +1,7 @@
 services:
+  # The Datadog Agent is provisioned by the tech-platform repo's compose
+  # (local/docker-compose.yml) so any service can rely on it without booting
+  # this compose. Point DD_AGENT_HOST=localhost at that shared agent.
   postgres:
     image: postgres:16-alpine
     container_name: work-order-postgres
