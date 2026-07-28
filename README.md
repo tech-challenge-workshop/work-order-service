@@ -122,6 +122,9 @@ the [feature file](tests/bdd/features/work-order-saga.feature).
 
 Node 24+, pnpm 10, Docker.
 
+The service is deployed continuously: every push to `main` builds, tests, scans
+and rolls the new image out to the cluster, pinned to the commit SHA.
+
 ## Run this service
 
 ```bash
