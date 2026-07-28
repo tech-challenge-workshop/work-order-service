@@ -21,7 +21,9 @@ RUN pnpm prisma generate && pnpm build && pnpm prune --prod
 FROM base AS migrator
 ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
-COPY package.json ./
+# prisma.config.ts is where Prisma 7 reads datasource.url from; without it
+# `migrate deploy` refuses to run even with DATABASE_URL in the environment.
+COPY package.json prisma.config.ts ./
 COPY prisma ./prisma
 USER node
 CMD ["pnpm", "prisma", "migrate", "deploy"]
