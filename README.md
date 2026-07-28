@@ -1,5 +1,9 @@
 # work-order-service
 
+[![ci](https://github.com/tech-challenge-workshop/work-order-service/actions/workflows/ci.yml/badge.svg)](https://github.com/tech-challenge-workshop/work-order-service/actions/workflows/ci.yml)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=tech-challenge-workshop_work-order-service&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=tech-challenge-workshop_work-order-service)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=tech-challenge-workshop_work-order-service&metric=coverage)](https://sonarcloud.io/component_measures?id=tech-challenge-workshop_work-order-service&metric=coverage)
+
 Work order intake and lifecycle service for a vehicle repair shop platform — FIAP SOAT Tech Challenge (Phase 4).
 
 This is one of four independent services:
@@ -65,6 +69,42 @@ Two guards are registered globally via `APP_GUARD`: `JwtAuthGuard` verifies the 
 | `GET /health` | **public** |
 
 In production the same token is also checked at the edge by Kong's `jwt` plugin — defence in depth, so a misrouted request never reaches an unauthenticated handler.
+
+## Why the saga is orchestrated
+
+The requirements allow either strategy. We chose **orchestration**, with the
+orchestrator living in this service.
+
+**The decision follows data ownership.** A work order's status *is* the state of
+the distributed transaction: `AWAITING_APPROVAL` means the quote step is
+pending, `IN_EXECUTION` means payment cleared. This service already owns that
+status and its history, and no other service is allowed to write it. Putting the
+coordinator anywhere else would mean the component that decides the next step is
+not the one that owns the state it depends on.
+
+**Choreography would scatter a rule that is genuinely central.** The compensation
+order is not symmetric: when execution fails we refund the payment, cancel the
+quote and release the parts — in that order, and only the steps that actually
+happened. Under choreography that ordering lives implicitly in who listens to
+what, spread across three codebases. Here it is one `compensate()` method you
+can read top to bottom, and the `SagaInstance` entity records which steps
+completed so compensation never undoes something that never happened.
+
+**It is also what makes the flow testable.** The
+[BDD scenarios](tests/bdd/features/work-order-saga.feature) drive the whole
+transaction — happy path and all four failure branches — by replaying messages
+against the orchestrator, with no broker and no database. That is only possible
+because the decisions are in one place.
+
+**What we give up.** The orchestrator is a coupling point: adding a saga step
+means changing this service, and it is a single point of failure for
+coordination. We accept that trade-off because the alternative — debugging an
+emergent ordering bug across three services — is worse at this scale. The
+participants stay decoupled regardless: they receive commands and reply with
+events, and none of them knows the others exist.
+
+The failure paths and the compensating action for each step are specified in
+the [feature file](tests/bdd/features/work-order-saga.feature).
 
 ## Business rules worth knowing
 
@@ -254,6 +294,27 @@ CI builds and pushes the image to `ghcr.io/tech-challenge-workshop/work-order-se
 | `pnpm test:bdd` | Cucumber scenarios for the saga (no database or broker needed) |
 | `pnpm lint` / `pnpm lint:check` | ESLint with/without autofix |
 | `pnpm format` | Prettier |
+
+## Test coverage
+
+The badges at the top are live: they come from the SonarCloud analysis CI runs
+on every push to `main`. Full report, file by file:
+**[sonarcloud.io › work-order-service](https://sonarcloud.io/component_measures?id=tech-challenge-workshop_work-order-service&metric=coverage)**
+
+`pnpm test:ci` merges unit and e2e runs into a single report and **fails the
+build below 80%** on statements, branches, functions and lines — the threshold
+lives in [`tests/jest-cov.json`](tests/jest-cov.json), so the gate is enforced
+locally and in CI by the same config.
+
+To reproduce:
+
+```bash
+docker compose up -d
+pnpm test:ci        # prints the coverage summary, writes coverage/lcov.info
+```
+
+> Stop `execution-service` and `billing-service` before running it — see the
+> note in the BDD section above.
 
 ## Docker
 
