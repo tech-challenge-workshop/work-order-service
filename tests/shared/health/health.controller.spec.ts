@@ -1,13 +1,9 @@
-import { APP_VERSION, HealthController } from '../../../src/shared/health/health.controller'
+import { HealthController } from '../../../src/shared/health/health.controller'
 
 describe('HealthController', () => {
   it('returns ok status', () => {
     const controller = new HealthController()
 
-    expect(controller.check()).toEqual({
-      status: 'ok',
-      service: 'work-order-service',
-      version: APP_VERSION,
-    })
+    expect(controller.check()).toEqual({ status: 'ok', service: 'work-order-service' })
   })
 })
