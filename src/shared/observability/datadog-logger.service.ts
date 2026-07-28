@@ -27,8 +27,8 @@ export class DatadogLoggerService implements LoggerService {
       'dd.trace_id': span?.context().toTraceId() ?? '',
       'dd.span_id': span?.context().toSpanId() ?? '',
       'dd.service': process.env.DD_SERVICE ?? 'work-order-service',
-      'dd.env': process.env.DD_ENV ?? 'production',
-      'dd.version': process.env.DD_VERSION ?? '',
+      'dd.env': process.env.DD_ENV ?? 'development',
+      'dd.version': process.env.DD_VERSION ?? 'unknown',
       timestamp: new Date().toISOString(),
     }
     process.stdout.write(JSON.stringify(entry) + '\n')
