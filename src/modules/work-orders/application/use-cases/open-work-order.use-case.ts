@@ -20,6 +20,8 @@ import { PART_CATALOG_GATEWAY } from '../ports/part-catalog.gateway'
 import type { PartCatalogGateway } from '../ports/part-catalog.gateway'
 import { MESSAGE_BUS } from '../../../../shared/messaging/message-bus'
 import type { MessageBus } from '../../../../shared/messaging/message-bus'
+import { METRICS_PORT } from '../../../../shared/metrics/metrics.port'
+import type { MetricsPort } from '../../../../shared/metrics/metrics.port'
 import { NOTIFICATION_PORT } from '../../../../shared/notifications/notification.port'
 import type { NotificationPort } from '../../../../shared/notifications/notification.port'
 import { SagaMessage } from '../../../../shared/messaging/saga-messages'
@@ -54,6 +56,8 @@ export class OpenWorkOrderUseCase {
     private readonly publisher: MessageBus,
     @Inject(NOTIFICATION_PORT)
     private readonly notifier: NotificationPort,
+    @Inject(METRICS_PORT)
+    private readonly metrics: MetricsPort,
   ) {}
 
   async execute(command: OpenWorkOrderCommand): Promise<WorkOrderOutput> {
@@ -89,6 +93,11 @@ export class OpenWorkOrderUseCase {
       previousStatus: null,
       newStatus: workOrder.status,
       occurredAt: firstChange.changedAt,
+    })
+    this.metrics.recordStatusChange({
+      previousStatus: null,
+      newStatus: workOrder.status,
+      previousStatusSeconds: null,
     })
 
     await this.publisher.publish(SagaMessage.WorkOrderOpened, {

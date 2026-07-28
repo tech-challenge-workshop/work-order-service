@@ -4,6 +4,8 @@ import type { WorkOrderRepository } from '../../work-orders/application/ports/wo
 import { WorkOrder } from '../../work-orders/domain/work-order.entity'
 import { MESSAGE_BUS } from '../../../shared/messaging/message-bus'
 import type { MessageBus } from '../../../shared/messaging/message-bus'
+import { METRICS_PORT } from '../../../shared/metrics/metrics.port'
+import type { MetricsPort } from '../../../shared/metrics/metrics.port'
 import { NOTIFICATION_PORT } from '../../../shared/notifications/notification.port'
 import type { NotificationPort } from '../../../shared/notifications/notification.port'
 import { TRACING_PORT } from '../../../shared/observability/tracing.port'
@@ -28,6 +30,8 @@ export class WorkOrderSagaOrchestrator {
     private readonly publisher: MessageBus,
     @Inject(NOTIFICATION_PORT)
     private readonly notifier: NotificationPort,
+    @Inject(METRICS_PORT)
+    private readonly metrics: MetricsPort,
     @Inject(TRACING_PORT)
     private readonly tracing: TracingPort,
   ) {}
@@ -188,12 +192,20 @@ export class WorkOrderSagaOrchestrator {
 
     if (workOrder.status !== previousStatus) {
       const lastChange = workOrder.history[workOrder.history.length - 1]
+      const priorChange = workOrder.history[workOrder.history.length - 2]
       await this.notifier.notifyStatusChange({
         workOrderId: workOrder.id,
         customerId: workOrder.customerId,
         previousStatus,
         newStatus: workOrder.status,
         occurredAt: lastChange.changedAt,
+      })
+      this.metrics.recordStatusChange({
+        previousStatus,
+        newStatus: workOrder.status,
+        previousStatusSeconds: priorChange
+          ? (lastChange.changedAt.getTime() - priorChange.changedAt.getTime()) / 1000
+          : null,
       })
     }
     return workOrder

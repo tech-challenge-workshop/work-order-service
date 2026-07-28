@@ -5,6 +5,7 @@ import { SagaStatus } from '../../../src/modules/saga/domain/saga-instance.entit
 import { SagaMessage } from '../../../src/shared/messaging/saga-messages'
 import { FakeWorkOrderRepository, openWorkOrder } from '../work-orders/work-order.fixtures'
 import { FakeMessagePublisher } from '../../shared/fake-message-publisher'
+import { FakeMetricsPort } from '../../shared/metrics/fake-metrics.port'
 import { FakeNotificationPort } from '../../shared/notifications/fake-notification.port'
 import { FakeTracingPort } from '../../shared/observability/fake-tracing.port'
 import { FakeSagaInstanceRepository } from './saga.fixtures'
@@ -14,6 +15,7 @@ describe('WorkOrderSagaOrchestrator', () => {
   let workOrders: FakeWorkOrderRepository
   let publisher: FakeMessagePublisher
   let notifier: FakeNotificationPort
+  let metrics: FakeMetricsPort
   let tracing: FakeTracingPort
   let orchestrator: WorkOrderSagaOrchestrator
   let workOrder: WorkOrder
@@ -23,8 +25,16 @@ describe('WorkOrderSagaOrchestrator', () => {
     workOrders = new FakeWorkOrderRepository()
     publisher = new FakeMessagePublisher()
     notifier = new FakeNotificationPort()
+    metrics = new FakeMetricsPort()
     tracing = new FakeTracingPort()
-    orchestrator = new WorkOrderSagaOrchestrator(sagas, workOrders, publisher, notifier, tracing)
+    orchestrator = new WorkOrderSagaOrchestrator(
+      sagas,
+      workOrders,
+      publisher,
+      notifier,
+      metrics,
+      tracing,
+    )
     workOrder = openWorkOrder()
     workOrders.workOrders.push(workOrder)
   })

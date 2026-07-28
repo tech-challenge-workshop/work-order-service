@@ -19,6 +19,7 @@ import {
 import { FakePartCatalogGateway, FakeWorkOrderRepository } from '../../work-order.fixtures'
 import { Plate } from '../../../../../src/modules/vehicles/domain/value-objects/plate'
 import { FakeMessagePublisher } from '../../../../shared/fake-message-publisher'
+import { FakeMetricsPort } from '../../../../shared/metrics/fake-metrics.port'
 import { FakeNotificationPort } from '../../../../shared/notifications/fake-notification.port'
 import { SagaMessage } from '../../../../../src/shared/messaging/saga-messages'
 
@@ -30,6 +31,7 @@ describe('OpenWorkOrderUseCase', () => {
   let partCatalog: FakePartCatalogGateway
   let publisher: FakeMessagePublisher
   let notifier: FakeNotificationPort
+  let metrics: FakeMetricsPort
   let useCase: OpenWorkOrderUseCase
 
   beforeEach(() => {
@@ -40,6 +42,7 @@ describe('OpenWorkOrderUseCase', () => {
     partCatalog = new FakePartCatalogGateway()
     publisher = new FakeMessagePublisher()
     notifier = new FakeNotificationPort()
+    metrics = new FakeMetricsPort()
     useCase = new OpenWorkOrderUseCase(
       workOrders,
       customers,
@@ -48,6 +51,7 @@ describe('OpenWorkOrderUseCase', () => {
       partCatalog,
       publisher,
       notifier,
+      metrics,
     )
   })
 

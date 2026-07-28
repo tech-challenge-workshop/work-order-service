@@ -9,12 +9,14 @@ import { AuthModule } from './shared/auth/auth.module'
 import { validateEnv } from './shared/config/env'
 import { PrismaModule } from './shared/database/prisma.module'
 import { HealthController } from './shared/health/health.controller'
+import { MetricsModule } from './shared/metrics/metrics.module'
 import { NotificationsModule } from './shared/notifications/notifications.module'
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     AuthModule,
+    MetricsModule,
     NotificationsModule,
     PrismaModule,
     CustomersModule,
