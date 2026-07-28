@@ -96,6 +96,25 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Same build, different target: keeps the Prisma CLI and migrations/ that
+      # the runtime stage drops, so the migration Job has something to run.
+      - uses: docker/metadata-action@v5
+        id: meta-migrator
+        with:
+          images: ghcr.io/tech-challenge-workshop/work-order-service-migrator
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=,format=short
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: migrator
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta-migrator.outputs.tags }}
+          labels: ${{ steps.meta-migrator.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   deploy:
     needs: docker
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -132,6 +151,24 @@ jobs:
       - name: Build the kubeconfig
         if: steps.guard.outputs.enabled == 'true'
         run: aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+
+      - name: Apply the schema migrations
+        if: steps.guard.outputs.enabled == 'true'
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_SHA::7}"
+          # The manifest lives in tech-platform, the single source of truth for
+          # everything cluster-side. Fetched rather than duplicated so the two
+          # cannot drift; the repository is public, so no credential is needed.
+          curl -fsSL -o migration-job.yaml \
+            "https://raw.githubusercontent.com/tech-challenge-workshop/tech-platform/main/k8s/work-order-service/migration-job.yaml"
+          # Recreated each release so it runs against this exact image.
+          kubectl -n "$NAMESPACE" delete job work-order-service-migrate --ignore-not-found
+          sed "s|work-order-service-migrator:main|work-order-service-migrator:${TAG}|" migration-job.yaml \
+            | kubectl -n "$NAMESPACE" create -f -
+          # A failed migration must stop the release, never follow it.
+          kubectl -n "$NAMESPACE" wait --for=condition=complete \
+            job/work-order-service-migrate --timeout=5m
 
       - name: Roll out the image built by this run
         if: steps.guard.outputs.enabled == 'true'
