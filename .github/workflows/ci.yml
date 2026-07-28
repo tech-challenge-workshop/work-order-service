@@ -54,6 +54,9 @@ jobs:
       - run: pnpm lint:check
       - run: pnpm build
       - run: pnpm test:ci
+      # Runs after the coverage gate: the saga scenarios drive the orchestrator
+      # through fakes, so they need no database or broker.
+      - run: pnpm test:bdd
       - name: SonarCloud scan
         if: ${{ env.SONAR_TOKEN != '' }}
         uses: SonarSource/sonarqube-scan-action@v4

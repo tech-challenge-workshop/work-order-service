@@ -193,6 +193,32 @@ To exercise **compensation** instead, call `/fail` rather than `/complete`: the 
 
 `tech-platform`'s local compose boots Kong on `:8000` in front of all four services. Swap `localhost:3000` for `localhost:8000` in any of the commands above and the flow is identical — Kong validates the JWT at the edge before proxying.
 
+## BDD
+
+The saga is specified in Gherkin at
+[`tests/bdd/features/work-order-saga.feature`](tests/bdd/features/work-order-saga.feature),
+written in the domain's own language — parts, quote, payment, repair — rather
+than in message names. Six scenarios cover the happy path plus every
+compensation branch: reservation failure, quote rejection, payment failure,
+execution failure, and a redelivered message that must not advance the saga
+twice.
+
+```bash
+pnpm test:bdd
+```
+
+The steps drive the real `WorkOrderSagaOrchestrator` against the same in-memory
+fakes the unit tests use. The saga spans three services in production, but the
+transaction is coordinated entirely here: every step is a message this
+orchestrator sends or reacts to, so replaying those messages exercises the whole
+flow without a database or a broker. That keeps the scenarios fast and
+deterministic in CI, where they run right after the coverage gate.
+
+> **Running the e2e suite locally:** stop `execution-service` and
+> `billing-service` first. They subscribe to the same RabbitMQ exchange, so a
+> running instance will consume the messages the e2e tests publish and advance
+> their work orders mid-assertion.
+
 ## Observability
 
 `dd-trace` reports APM traces to the Datadog Agent that `tech-platform`'s compose provides on `localhost:8126`. Application logs are JSON and carry `dd.trace_id` / `dd.span_id`, so a log line links back to its trace. Each saga step is wrapped in a custom span through `TracingPort.withSpan()`, which makes the whole distributed transaction one connected trace rather than four unrelated ones.
@@ -225,6 +251,7 @@ CI builds and pushes the image to `ghcr.io/tech-challenge-workshop/work-order-se
 | `pnpm test:cov` | Unit tests with coverage (minimum 80%) |
 | `pnpm test:e2e` | End-to-end tests (requires `docker compose up -d`) |
 | `pnpm test:ci` | Combined unit + e2e coverage — the gate CI enforces |
+| `pnpm test:bdd` | Cucumber scenarios for the saga (no database or broker needed) |
 | `pnpm lint` / `pnpm lint:check` | ESLint with/without autofix |
 | `pnpm format` | Prettier |
 
